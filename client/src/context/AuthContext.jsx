@@ -1,16 +1,34 @@
-import { createContext, useContext, useState } from 'react';
+import { createContext, useContext, useState, useEffect } from 'react';
+import { usePrivy } from '@privy-io/react-auth';
 
 const AuthContext = createContext();
 
 export const useAuth = () => useContext(AuthContext);
 
 export const AuthProvider = ({ children }) => {
-    const [user, setUser] = useState(null); // { role: 'admin' | 'client', wallet: string | null }
-    const [loading, setLoading] = useState(false);
+    const { ready, authenticated, user: privyUser, login: privyLogin, logout: privyLogout } = usePrivy();
+    const [user, setUser] = useState(null);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        if (ready) {
+            setLoading(false);
+            if (authenticated && privyUser) {
+                const walletAddress = privyUser.wallet?.address || null;
+                setUser({
+                    role: 'client',
+                    name: privyUser.email?.address || privyUser.wallet?.address?.slice(0, 10) || 'User',
+                    wallet: walletAddress,
+                    privyId: privyUser.id
+                });
+            } else {
+                setUser(null);
+            }
+        }
+    }, [ready, authenticated, privyUser]);
 
     const login = async (username, password) => {
         setLoading(true);
-        // Mimic API delay
         await new Promise(resolve => setTimeout(resolve, 1000));
 
         if (username === 'admin' && password === '123') {
@@ -30,21 +48,18 @@ export const AuthProvider = ({ children }) => {
     };
 
     const connectWallet = async () => {
-        setLoading(true);
-        await new Promise(resolve => setTimeout(resolve, 1500));
-        // Mock wallet connection for now
-        const mockWallet = "0x71C...9A21";
-        // For demo purposes, auto-login as client if wallet connects, or just attach wallet
-        setUser({ role: 'client', name: 'Wallet User', wallet: mockWallet });
-        setLoading(false);
+        privyLogin();
     };
 
-    const logout = () => {
+    const logout = async () => {
+        if (authenticated) {
+            await privyLogout();
+        }
         setUser(null);
     };
 
     return (
-        <AuthContext.Provider value={{ user, login, logout, connectWallet, loading }}>
+        <AuthContext.Provider value={{ user, login, logout, connectWallet, loading, ready, authenticated }}>
             {children}
         </AuthContext.Provider>
     );

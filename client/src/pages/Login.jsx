@@ -1,17 +1,23 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useAuth } from '../context/AuthContext';
 import AnimatedBackground from '../components/AnimatedBackground';
 import logo from '../assets/logo.jpg';
-import { Wallet, ArrowRight, Lock, User } from 'lucide-react';
+import { Wallet, ArrowRight } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 const Login = () => {
-    const { login, connectWallet, loading } = useAuth();
+    const { login, connectWallet, loading, authenticated, user, ready } = useAuth();
     const navigate = useNavigate();
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
+
+    useEffect(() => {
+        if (ready && authenticated && user) {
+            navigate('/client');
+        }
+    }, [ready, authenticated, user, navigate]);
 
     const handleLogin = async (e) => {
         e.preventDefault();
@@ -27,8 +33,15 @@ const Login = () => {
 
     const handleWallet = async () => {
         await connectWallet();
-        navigate('/client');
     };
+
+    if (!ready) {
+        return (
+            <div className="min-h-screen flex items-center justify-center bg-black">
+                <div className="text-[#FFD700] text-xl animate-pulse">Loading...</div>
+            </div>
+        );
+    }
 
     return (
         <div className="min-h-screen flex items-center justify-center p-6 relative overflow-hidden">
@@ -40,7 +53,6 @@ const Login = () => {
                 transition={{ duration: 1.2, ease: [0.22, 1, 0.36, 1] }}
                 className="glass-panel w-full max-w-[500px] p-10 md:p-14 relative z-10 flex flex-col items-center border-t-2 border-t-[#FFD700]"
             >
-                {/* Massive Premium Logo Section */}
                 <div className="relative mb-12 text-center group">
                     <motion.div
                         initial={{ y: 20, opacity: 0 }}
@@ -129,8 +141,12 @@ const Login = () => {
                     className="w-full py-4 border border-[#333] hover:bg-[#111] transition-all flex items-center justify-center gap-3 text-sm text-gray-500 uppercase tracking-[0.2em]"
                 >
                     <Wallet className="w-4 h-4" />
-                    Connect Wallet
+                    Connect with Privy
                 </motion.button>
+
+                <p className="text-[10px] text-gray-600 mt-4 text-center">
+                    Email, Wallet, or Social Login
+                </p>
             </motion.div>
 
             <div className="absolute bottom-6 text-[10px] text-[#444] tracking-[0.5em] font-mono uppercase">
