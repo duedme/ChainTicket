@@ -1,0 +1,127 @@
+/* Import Font */
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@200;400;500;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  /* Ultra Premium Palette - Strict Black & Gold */
+  --color-gold-primary: #FFD700;
+  /* Brighter, truer gold */
+  --color-gold-light: #FCEebb;
+  --color-gold-dark: #B8860B;
+
+  --color-bg-deep: #000000;
+  /* True Black */
+  --color-bg-subtle: #0a0a0a;
+
+  --color-text-main: #FFFFFF;
+  --color-text-dim: #D3D3D3;
+
+  /* Glassmorphism Refined for Black */
+  --glass-bg: rgba(10, 10, 10, 0.85);
+  /* Darker, less transparent */
+  --glass-border: rgba(255, 215, 0, 0.3);
+  /* Stronger gold border */
+  --glass-blur: 15px;
+
+  /* Typography */
+  --font-main: 'Outfit', 'Inter', sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: var(--font-main);
+  background-color: var(--color-bg-deep);
+  color: var(--color-text-main);
+  overflow-x: hidden;
+  line-height: 1.6;
+  font-size: 16px;
+  /* Increased base size */
+}
+
+/* Utilities */
+.glass-panel {
+  background: linear-gradient(180deg, rgba(20, 20, 20, 0.9) 0%, rgba(0, 0, 0, 0.95) 100%);
+  backdrop-filter: blur(var(--glass-blur));
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+  border: 1px solid var(--glass-border);
+  box-shadow: 0 0 40px rgba(255, 215, 0, 0.05);
+  /* Subtle gold glow */
+}
+
+.text-gradient-gold {
+  background: linear-gradient(to bottom, #FFD700 0%, #FDB931 50%, #B8860B 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  text-shadow: 0 0 20px rgba(255, 215, 0, 0.3);
+  letter-spacing: 0.1em;
+}
+
+.btn-premium {
+  background: linear-gradient(180deg, #FFD700 0%, #B8860B 100%);
+  color: #000000;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 3px;
+  border: none;
+  padding: 1.2rem 2.5rem;
+  /* Larger touch targets */
+  border-radius: 2px;
+  /* Sharp corners for luxury feel */
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 5px 20px rgba(255, 215, 0, 0.2);
+  font-size: 0.9rem;
+}
+
+.btn-premium:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 30px rgba(255, 215, 0, 0.4);
+  filter: brightness(1.2);
+}
+
+.input-premium {
+  background: rgba(0, 0, 0, 0.8);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 0px;
+  color: #FFD700;
+  padding: 1.2rem 1.5rem;
+  font-size: 1.1rem;
+  transition: all 0.3s ease;
+  width: 100%;
+  font-family: inherit;
+  letter-spacing: 0.05em;
+}
+
+.input-premium:focus {
+  outline: none;
+  border-color: #FFD700;
+  box-shadow: 0 0 20px rgba(255, 215, 0, 0.1);
+  background: black;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: black;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #333;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #555;
+}
