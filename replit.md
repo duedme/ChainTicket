@@ -1,37 +1,42 @@
-# TicketChain - Movement M1 Hackathon
+# Chain Ticket - Movement M1 Hackathon
 
 ## Overview
-TicketChain is a tokenized ticketing platform built on Movement blockchain for the M1 Hackathon. It allows businesses to create, sell, and manage tokenized tickets (NFTs) for events, capacity limits, or special offers.
+Chain Ticket is a tokenized ticketing platform built on Movement blockchain for the M1 Hackathon. It allows businesses to create, sell, and manage tokenized tickets (NFTs) for events, capacity limits, or special offers.
 
 ## Project Structure
 
 ```
 /
-├── client/          # Next.js 14 frontend
+├── client/              # React + Vite frontend
 │   ├── src/
-│   │   └── app/     # App Router pages and components
+│   │   ├── components/  # Reusable UI components
+│   │   ├── context/     # React contexts (AuthContext)
+│   │   ├── pages/       # Page components (Login, Client, Admin)
+│   │   └── assets/      # Images and static assets
+│   ├── vite.config.js
 │   └── package.json
-├── backend/         # Express.js API server
+├── backend/             # Express.js API server
 │   ├── server.js
 │   └── package.json
-├── contracts/       # Movement Move smart contracts
+├── contracts/           # Movement Move smart contracts
 │   ├── sources/
 │   │   └── ticket.move
 │   └── Move.toml
-└── replit.md        # This file
+└── replit.md            # This file
 ```
 
 ## Tech Stack
 
 ### Frontend
-- **Next.js 14** with App Router
+- **React 18.2.0** with Vite
 - **Tailwind CSS** for styling
-- **TypeScript**
-- Planned: Privy for wallet auth, x402 for payments
+- **Framer Motion** for animations
+- **Privy 1.88.4** for wallet authentication (email, wallet, social login)
+- **React Router** for navigation
 
 ### Backend
 - **Express.js** API
-- Planned: AI integration (AWS Bedrock or OpenAI) for recommendations
+- OpenAI integration for AI recommendations
 
 ### Blockchain
 - **Movement blockchain** (Move language)
@@ -48,11 +53,17 @@ The frontend runs on port 5000, backend on port 3001.
 3. **QR Validation** - Scan tickets at entry points
 4. **Analytics Dashboard** - Track sales and revenue
 
-## Integrations Planned
+## Authentication
 
-- **Privy** - Wallet authentication
-- **x402** - Crypto payment processing
-- **AWS Bedrock/OpenAI** - AI assistant for business queries
+- **Privy** integration for wallet/social authentication
+- Traditional username/password login also available
+- Test credentials: admin/123 or user/123
 
-## Hackathon Timeline
-Movement M1 Hackathon ends late December 2024.
+## Important Notes
+
+- Privy version must stay at 1.88.4 to avoid React hook conflicts
+- React must stay at 18.2.0 for compatibility with Privy
+- Vite config includes aliases to prevent duplicate React instances
+
+## Privy App ID
+clpispdty00ycl80fpueukbhl
