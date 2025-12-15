@@ -26,7 +26,7 @@ module ticketchain::ticket {
         event_id: address,
         ticket_number: u64,
         owner: address,
-        is_used: bool,
+        permanent: bool
     }
 
     /// Events for tracking
