@@ -25,6 +25,7 @@ Chain Ticket is a tokenized ticketing platform built on Movement blockchain for 
 ├── contracts/           # Movement Move smart contracts
 │   ├── sources/
 │   │   ├── admin_registry.move
+│   │   ├── business_profile.move
 │   │   └── ticket.move
 │   └── Move.toml
 └── replit.md            # This file
@@ -134,6 +135,54 @@ Main contract for events and ticket NFTs with payment verification and burn func
 1. Mint → `is_used=false, is_burned=false`
 2. Use/Check-in → `is_used=true` (resource stays)
 3. Reset → `is_used=false` (ready for reuse)
+
+### 3. BusinessProfile (business_profile.move)
+Stores business metadata for AI recommendations.
+
+**Fields:**
+- `owner`, `business_name`, `business_type`
+- `max_capacity` - Maximum venue capacity
+- `average_consumption` - Average spend per customer
+- `peak_days` - Vector of peak days (0=Sunday, 6=Saturday)
+- `peak_hours_start`, `peak_hours_end` - Peak hours range
+- `typical_event_duration_hours`
+- `average_ticket_price`
+- `monthly_events_count`
+- `customer_return_rate` - Percentage of returning customers
+- `admin_registry` - Associated admin registry address
+
+**Entry Functions:**
+- `create_profile(...)` - Create business profile with all metadata
+- `update_capacity_metrics(...)` - Update capacity and consumption
+- `update_peak_schedule(...)` - Update peak days and hours
+- `update_event_metrics(...)` - Update event-related metrics
+
+**View Functions:**
+- `get_profile_info(...)` - All profile data
+- `get_ai_recommendation_data(...)` - Data optimized for AI recommendations
+- `get_admin_registry(...)`, `get_max_capacity(...)`, `get_owner(...)`
+
+## Entry Flow (Check-in at Venue)
+
+```
+1. Client shows QR code (contains ticket_address + nonce hash)
+2. Staff scans QR → extract ticket_address and qr_hash
+3. Call verify_qr_hash(ticket_object, hash) → confirms QR matches ticket
+4. Call is_ticket_valid(ticket_object) → confirms ticket is usable
+5. Call check_in(staff, ticket_object, event_object, qr_hash):
+   - Verifies staff is admin of event's registry OR is business owner
+   - Validates QR hash matches
+   - For non-permanent: marks used, burns ticket (deletes resource)
+   - For permanent: just records usage (ticket persists)
+6. Emit CheckInCompleted event for off-chain logging
+```
+
+**QR Code Generation (off-chain):**
+```
+qr_data = hash(ticket_address + nonce)
+store qr_hash in ticket.qr_hash at mint time
+QR code encodes: { ticket_address, qr_data }
+```
 
 ## Running the Project
 

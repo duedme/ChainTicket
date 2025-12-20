@@ -4,8 +4,10 @@ module ticketchain::ticket {
     use std::vector;
     use aptos_framework::object::{Self, Object, DeleteRef};
     use aptos_framework::event;
+    use ticketchain::admin_registry;
 
     const E_NOT_AUTHORIZED: u64 = 1;
+    const E_NOT_ADMIN: u64 = 16;
     const E_TICKET_ALREADY_USED: u64 = 2;
     const E_EVENT_SOLD_OUT: u64 = 3;
     const E_INVALID_TICKET: u64 = 4;
@@ -25,6 +27,7 @@ module ticketchain::ticket {
         name: String,
         description: String,
         business_address: address,
+        admin_registry: address,
         total_tickets: u64,
         tickets_sold: u64,
         ticket_price: u64,
@@ -129,6 +132,7 @@ module ticketchain::ticket {
 
     public entry fun create_event(
         business: &signer,
+        admin_registry_address: address,
         name: String,
         description: String,
         total_tickets: u64,
@@ -141,16 +145,19 @@ module ticketchain::ticket {
     ) {
         let business_addr = signer::address_of(business);
         
+        assert!(admin_registry::is_admin(admin_registry_address, business_addr), E_NOT_ADMIN);
+        
         let constructor_ref = object::create_object(business_addr);
         let object_signer = object::generate_signer(&constructor_ref);
         let event_address = object::address_from_constructor_ref(&constructor_ref);
 
-        let name_copy = string::utf8(*string::bytes(&name));
+        let name_copy = string::clone(&name);
 
         move_to(&object_signer, Event {
             name,
             description,
             business_address: business_addr,
+            admin_registry: admin_registry_address,
             total_tickets,
             tickets_sold: 0,
             ticket_price,
@@ -418,7 +425,9 @@ module ticketchain::ticket {
         let event_addr = object::object_address(&event_object);
         
         let event_data = borrow_global<Event>(event_addr);
-        assert!(event_data.business_address == staff_addr, E_NOT_AUTHORIZED);
+        let is_business = event_data.business_address == staff_addr;
+        let is_admin = admin_registry::is_admin(event_data.admin_registry, staff_addr);
+        assert!(is_business || is_admin, E_NOT_AUTHORIZED);
         assert!(event_data.is_active, E_EVENT_INACTIVE);
         assert!(!event_data.is_cancelled, E_EVENT_CANCELLED);
 
@@ -549,6 +558,7 @@ module ticketchain::ticket {
     #[view]
     public fun get_event_info(event_object: Object<Event>): (
         String,
+        address,
         u64,
         u64,
         u64,
@@ -564,6 +574,7 @@ module ticketchain::ticket {
         let event_data = borrow_global<Event>(event_addr);
         (
             event_data.name,
+            event_data.admin_registry,
             event_data.total_tickets,
             event_data.tickets_sold,
             event_data.ticket_price,
