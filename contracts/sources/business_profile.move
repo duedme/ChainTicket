@@ -60,8 +60,8 @@ module ticketchain::business_profile {
         let object_signer = object::generate_signer(&constructor_ref);
         let profile_address = object::address_from_constructor_ref(&constructor_ref);
 
-        let name_for_event = string::clone(&business_name);
-        let type_for_event = string::clone(&business_type);
+        let name_for_event = *&business_name;
+        let type_for_event = *&business_type;
 
         move_to(&object_signer, BusinessProfile {
             owner: owner_addr,

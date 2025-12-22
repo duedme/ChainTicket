@@ -151,7 +151,7 @@ module ticketchain::ticket {
         let object_signer = object::generate_signer(&constructor_ref);
         let event_address = object::address_from_constructor_ref(&constructor_ref);
 
-        let name_copy = string::clone(&name);
+        let name_copy = *&name;
 
         move_to(&object_signer, Event {
             name,
@@ -433,7 +433,7 @@ module ticketchain::ticket {
 
         let ticket_owner: address;
         let is_permanent: bool;
-        let mut was_consumed = false;
+        let was_consumed = false;
         
         {
             let ticket_data = borrow_global_mut<Ticket>(ticket_addr);
