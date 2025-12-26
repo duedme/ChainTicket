@@ -91,12 +91,14 @@ export const DataProvider = ({ children }) => {
                 setOrders(data.orders.map(o => ({
                     id: o.order_number,
                     dbId: o.id,
+                    vendorId: o.vendor_id,
                     items: o.items?.filter(i => i.id) || [],
                     status: o.status,
                     timestamp: new Date(o.created_at).getTime(),
                     estimatedWait: o.estimated_wait,
                     queuePosition: o.queue_position,
-                    totalAmount: parseFloat(o.total_amount) || 0
+                    totalAmount: parseFloat(o.total_amount) || 0,
+                    isQueueOrder: o.order_number?.startsWith('Q-')
                 })));
             }
         } catch (error) {
@@ -380,6 +382,44 @@ export const DataProvider = ({ children }) => {
         }
     };
 
+    // Join queue (for supermarket/queue-only vendors)
+    const joinQueue = async (vendorId) => {
+        try {
+            const response = await fetch(`${API_URL}/api/queue/join`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    vendorId,
+                    privyId: user?.privyId
+                })
+            });
+            const data = await response.json();
+            if (data.success) {
+                await fetchMyOrders();
+                return {
+                    order: data.order,
+                    queuePosition: data.queuePosition,
+                    estimatedWait: data.estimatedWait
+                };
+            }
+        } catch (error) {
+            console.error('Error joining queue:', error);
+        }
+        return null;
+    };
+
+    // Get queue status for an order
+    const getQueueStatus = async (orderId) => {
+        try {
+            const response = await fetch(`${API_URL}/api/queue/status/${orderId}`);
+            const data = await response.json();
+            return data;
+        } catch (error) {
+            console.error('Error getting queue status:', error);
+        }
+        return null;
+    };
+
     return (
         <DataContext.Provider value={{
             vendors,
@@ -405,7 +445,9 @@ export const DataProvider = ({ children }) => {
             clearCart,
             createOrderFromCart,
             updateOrderStatus,
-            setOrders
+            setOrders,
+            joinQueue,
+            getQueueStatus
         }}>
             {children}
         </DataContext.Provider>

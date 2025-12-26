@@ -461,17 +461,17 @@ app.patch('/api/orders/:id/status', async (req, res) => {
     const { id } = req.params;
     const { status } = req.body;
     
-    const completedAt = status === 'completed' ? 'CURRENT_TIMESTAMP' : 'NULL';
+    let updateQuery = `UPDATE orders SET status = $2, updated_at = CURRENT_TIMESTAMP`;
     
-    const result = await pool.query(
-      `UPDATE orders SET 
-        status = $2, 
-        completed_at = ${status === 'completed' ? 'CURRENT_TIMESTAMP' : 'completed_at'},
-        updated_at = CURRENT_TIMESTAMP
-      WHERE id = $1
-      RETURNING *`,
-      [id, status]
-    );
+    if (status === 'accepted') {
+      updateQuery += `, accepted_at = CURRENT_TIMESTAMP`;
+    } else if (status === 'completed') {
+      updateQuery += `, completed_at = CURRENT_TIMESTAMP`;
+    }
+    
+    updateQuery += ` WHERE id = $1 RETURNING *`;
+    
+    const result = await pool.query(updateQuery, [id, status]);
     
     // If order completed, recalculate queue positions
     if (status === 'completed') {
@@ -629,6 +629,84 @@ app.post('/api/vendors', async (req, res) => {
     res.json({ success: true, vendor: result.rows[0] });
   } catch (error) {
     console.error('Error creating vendor:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Join queue (for supermarket/queue-only vendors)
+app.post('/api/queue/join', async (req, res) => {
+  try {
+    const { vendorId, privyId } = req.body;
+    
+    const vendor = await pool.query('SELECT * FROM vendors WHERE id = $1', [vendorId]);
+    if (vendor.rows.length === 0) {
+      return res.status(404).json({ error: 'Vendor not found' });
+    }
+    
+    const avgServiceTime = vendor.rows[0].avg_service_time || 5;
+    
+    const pendingOrders = await pool.query(
+      `SELECT COUNT(*) FROM orders WHERE vendor_id = $1 AND status IN ('pending', 'accepted')`,
+      [vendorId]
+    );
+    const position = parseInt(pendingOrders.rows[0].count) + 1;
+    const estimatedWait = position * avgServiceTime;
+    
+    const orderNumber = `Q-${Date.now().toString().slice(-8)}`;
+    
+    const orderResult = await pool.query(
+      `INSERT INTO orders (order_number, user_privy_id, vendor_id, status, estimated_wait, queue_position)
+       VALUES ($1, $2, $3, 'pending', $4, $5)
+       RETURNING *`,
+      [orderNumber, privyId || null, vendorId, estimatedWait, position]
+    );
+    
+    res.json({ 
+      success: true, 
+      order: orderResult.rows[0],
+      queuePosition: position,
+      estimatedWait: estimatedWait
+    });
+  } catch (error) {
+    console.error('Error joining queue:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Get queue status
+app.get('/api/queue/status/:orderId', async (req, res) => {
+  try {
+    const { orderId } = req.params;
+    
+    const orderResult = await pool.query('SELECT * FROM orders WHERE id = $1', [orderId]);
+    if (orderResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Order not found' });
+    }
+    
+    const order = orderResult.rows[0];
+    const vendorId = order.vendor_id;
+    
+    const vendor = await pool.query('SELECT * FROM vendors WHERE id = $1', [vendorId]);
+    const avgServiceTime = vendor.rows[0]?.avg_service_time || 5;
+    
+    const aheadOrders = await pool.query(
+      `SELECT COUNT(*) FROM orders 
+       WHERE vendor_id = $1 AND status IN ('pending', 'accepted') 
+       AND created_at < $2`,
+      [vendorId, order.created_at]
+    );
+    
+    const position = parseInt(aheadOrders.rows[0].count) + 1;
+    const estimatedWait = position * avgServiceTime;
+    
+    res.json({
+      order,
+      queuePosition: position,
+      estimatedWait: estimatedWait,
+      status: order.status
+    });
+  } catch (error) {
+    console.error('Error getting queue status:', error);
     res.status(500).json({ error: error.message });
   }
 });
