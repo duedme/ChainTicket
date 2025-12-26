@@ -7,7 +7,8 @@ export default defineConfig({
   resolve: {
     alias: {
       react: path.resolve('./node_modules/react'),
-      'react-dom': path.resolve('./node_modules/react-dom')
+      'react-dom': path.resolve('./node_modules/react-dom'),
+      '@assets': path.resolve(__dirname, 'src/assets')
     }
   },
   server: {
@@ -16,6 +17,12 @@ export default defineConfig({
     allowedHosts: true,
     hmr: {
       clientPort: 443
+    },
+    proxy: {
+      '/api': {
+        target: 'http://localhost:3001',
+        changeOrigin: true
+      }
     }
   }
 })

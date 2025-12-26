@@ -149,6 +149,491 @@ app.patch('/api/users/:privyId', async (req, res) => {
 });
 
 // ============================================
+// SERVICES ROUTES
+// ============================================
+
+// Get all services (for clients to browse)
+app.get('/api/services', async (req, res) => {
+  try {
+    const { vendorId, activeOnly } = req.query;
+    let query = 'SELECT * FROM services';
+    const params = [];
+    const conditions = [];
+    
+    if (vendorId) {
+      params.push(vendorId);
+      conditions.push(`vendor_id = $${params.length}`);
+    }
+    if (activeOnly === 'true') {
+      conditions.push('is_active = true');
+    }
+    
+    if (conditions.length > 0) {
+      query += ' WHERE ' + conditions.join(' AND ');
+    }
+    query += ' ORDER BY created_at DESC';
+    
+    const result = await pool.query(query, params);
+    res.json({ services: result.rows });
+  } catch (error) {
+    console.error('Error fetching services:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Get services by owner (for admin dashboard)
+app.get('/api/services/owner/:privyId', async (req, res) => {
+  try {
+    const { privyId } = req.params;
+    const result = await pool.query(
+      'SELECT * FROM services WHERE owner_privy_id = $1 ORDER BY created_at DESC',
+      [privyId]
+    );
+    res.json({ services: result.rows });
+  } catch (error) {
+    console.error('Error fetching owner services:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Create service
+app.post('/api/services', async (req, res) => {
+  try {
+    const { ownerPrivyId, vendorId, title, description, image, avgTime, totalStock, price, schedule, isActive } = req.body;
+    
+    const result = await pool.query(
+      `INSERT INTO services (owner_privy_id, vendor_id, title, description, image, avg_time, total_stock, price, is_active, schedule_open_time, schedule_close_time, schedule_days)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+       RETURNING *`,
+      [
+        ownerPrivyId,
+        vendorId || null,
+        title,
+        description || '',
+        image || 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?q=80&w=2670&auto=format&fit=crop',
+        avgTime || 30,
+        totalStock || 100,
+        price || 0,
+        isActive !== undefined ? isActive : true,
+        schedule?.openTime || '09:00',
+        schedule?.closeTime || '18:00',
+        schedule?.days || ['Mon', 'Tue', 'Wed', 'Thu', 'Fri']
+      ]
+    );
+    
+    res.json({ success: true, service: result.rows[0] });
+  } catch (error) {
+    console.error('Error creating service:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Update service
+app.patch('/api/services/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { title, description, image, avgTime, totalStock, price, isActive, schedule } = req.body;
+    
+    const result = await pool.query(
+      `UPDATE services SET 
+        title = COALESCE($2, title),
+        description = COALESCE($3, description),
+        image = COALESCE($4, image),
+        avg_time = COALESCE($5, avg_time),
+        total_stock = COALESCE($6, total_stock),
+        price = COALESCE($7, price),
+        is_active = COALESCE($8, is_active),
+        schedule_open_time = COALESCE($9, schedule_open_time),
+        schedule_close_time = COALESCE($10, schedule_close_time),
+        schedule_days = COALESCE($11, schedule_days),
+        updated_at = CURRENT_TIMESTAMP
+      WHERE id = $1
+      RETURNING *`,
+      [
+        id,
+        title,
+        description,
+        image,
+        avgTime,
+        totalStock,
+        price,
+        isActive,
+        schedule?.openTime,
+        schedule?.closeTime,
+        schedule?.days
+      ]
+    );
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Service not found' });
+    }
+    
+    res.json({ success: true, service: result.rows[0] });
+  } catch (error) {
+    console.error('Error updating service:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Toggle service active status
+app.patch('/api/services/:id/toggle', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { isGuest } = req.body;
+    
+    if (isGuest) {
+      return res.status(403).json({ error: 'Guests cannot activate services' });
+    }
+    
+    const result = await pool.query(
+      `UPDATE services SET is_active = NOT is_active, updated_at = CURRENT_TIMESTAMP WHERE id = $1 RETURNING *`,
+      [id]
+    );
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Service not found' });
+    }
+    
+    res.json({ success: true, service: result.rows[0] });
+  } catch (error) {
+    console.error('Error toggling service:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Delete service
+app.delete('/api/services/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    await pool.query('DELETE FROM services WHERE id = $1', [id]);
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error deleting service:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ============================================
+// ORDERS ROUTES
+// ============================================
+
+// Get orders by user
+app.get('/api/orders/user/:privyId', async (req, res) => {
+  try {
+    const { privyId } = req.params;
+    const { status } = req.query;
+    
+    let query = `
+      SELECT o.*, 
+        json_agg(json_build_object(
+          'id', oi.id,
+          'serviceId', oi.service_id,
+          'serviceName', oi.service_name,
+          'quantity', oi.quantity,
+          'avgTime', oi.avg_time,
+          'price', oi.price
+        )) as items
+      FROM orders o
+      LEFT JOIN order_items oi ON o.id = oi.order_id
+      WHERE o.user_privy_id = $1
+    `;
+    const params = [privyId];
+    
+    if (status) {
+      params.push(status);
+      query += ` AND o.status = $${params.length}`;
+    }
+    
+    query += ' GROUP BY o.id ORDER BY o.created_at DESC';
+    
+    const result = await pool.query(query, params);
+    res.json({ orders: result.rows });
+  } catch (error) {
+    console.error('Error fetching orders:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Get orders for vendor (admin view)
+app.get('/api/orders/vendor/:privyId', async (req, res) => {
+  try {
+    const { privyId } = req.params;
+    const { status } = req.query;
+    
+    let query = `
+      SELECT o.*, 
+        u.full_name as customer_name,
+        json_agg(json_build_object(
+          'id', oi.id,
+          'serviceId', oi.service_id,
+          'serviceName', oi.service_name,
+          'quantity', oi.quantity,
+          'avgTime', oi.avg_time
+        )) as items
+      FROM orders o
+      LEFT JOIN order_items oi ON o.id = oi.order_id
+      LEFT JOIN users u ON o.user_privy_id = u.privy_id
+      WHERE EXISTS (
+        SELECT 1 FROM services s WHERE s.id = oi.service_id AND s.owner_privy_id = $1
+      )
+    `;
+    const params = [privyId];
+    
+    if (status) {
+      params.push(status);
+      query += ` AND o.status = $${params.length}`;
+    }
+    
+    query += ' GROUP BY o.id, u.full_name ORDER BY o.created_at DESC';
+    
+    const result = await pool.query(query, params);
+    res.json({ orders: result.rows });
+  } catch (error) {
+    console.error('Error fetching vendor orders:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Create order
+app.post('/api/orders', async (req, res) => {
+  try {
+    const { userPrivyId, vendorId, items } = req.body;
+    
+    // Calculate queue position based on pending orders
+    const pendingOrders = await pool.query(
+      `SELECT COUNT(*) as count, COALESCE(SUM(estimated_wait), 0) as total_wait 
+       FROM orders WHERE status = 'pending'`
+    );
+    
+    const queuePosition = parseInt(pendingOrders.rows[0].count) + 1;
+    const baseWait = parseInt(pendingOrders.rows[0].total_wait) || 0;
+    
+    // Calculate estimated wait time based on items
+    const maxItemTime = Math.max(...items.map(item => (item.avgTime || 30) * item.quantity));
+    const estimatedWait = baseWait + maxItemTime;
+    
+    // Generate order number
+    const orderNumber = `ORD-${Date.now().toString().slice(-8)}`;
+    
+    // Calculate total amount
+    const totalAmount = items.reduce((sum, item) => sum + (item.price || 0) * item.quantity, 0);
+    
+    // Create order
+    const orderResult = await pool.query(
+      `INSERT INTO orders (order_number, user_privy_id, vendor_id, status, estimated_wait, queue_position, total_amount)
+       VALUES ($1, $2, $3, 'pending', $4, $5, $6)
+       RETURNING *`,
+      [orderNumber, userPrivyId, vendorId, estimatedWait, queuePosition, totalAmount]
+    );
+    
+    const order = orderResult.rows[0];
+    
+    // Create order items and update service sold counts
+    for (const item of items) {
+      await pool.query(
+        `INSERT INTO order_items (order_id, service_id, service_name, quantity, avg_time, price)
+         VALUES ($1, $2, $3, $4, $5, $6)`,
+        [order.id, item.serviceId, item.serviceName, item.quantity, item.avgTime, item.price || 0]
+      );
+      
+      // Update sold count
+      await pool.query(
+        `UPDATE services SET sold = sold + $1 WHERE id = $2`,
+        [item.quantity, item.serviceId]
+      );
+    }
+    
+    res.json({ 
+      success: true, 
+      order: { ...order, items },
+      queuePosition,
+      estimatedWait
+    });
+  } catch (error) {
+    console.error('Error creating order:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Update order status
+app.patch('/api/orders/:id/status', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status } = req.body;
+    
+    const completedAt = status === 'completed' ? 'CURRENT_TIMESTAMP' : 'NULL';
+    
+    const result = await pool.query(
+      `UPDATE orders SET 
+        status = $2, 
+        completed_at = ${status === 'completed' ? 'CURRENT_TIMESTAMP' : 'completed_at'},
+        updated_at = CURRENT_TIMESTAMP
+      WHERE id = $1
+      RETURNING *`,
+      [id, status]
+    );
+    
+    // If order completed, recalculate queue positions
+    if (status === 'completed') {
+      await pool.query(`
+        UPDATE orders SET queue_position = queue_position - 1
+        WHERE status = 'pending' AND queue_position > 0
+      `);
+    }
+    
+    res.json({ success: true, order: result.rows[0] });
+  } catch (error) {
+    console.error('Error updating order status:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Get queue info
+app.get('/api/queue/info', async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT 
+        COUNT(*) FILTER (WHERE status = 'pending') as pending_orders,
+        COALESCE(SUM(estimated_wait) FILTER (WHERE status = 'pending'), 0) as total_wait_time,
+        COUNT(*) FILTER (WHERE status = 'completed' AND DATE(completed_at) = CURRENT_DATE) as completed_today
+      FROM orders
+    `);
+    
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error('Error fetching queue info:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ============================================
+// TICKETS ROUTES
+// ============================================
+
+// Get tickets by user
+app.get('/api/tickets/user/:privyId', async (req, res) => {
+  try {
+    const { privyId } = req.params;
+    const result = await pool.query(
+      `SELECT t.*, s.title as service_title, s.image as service_image
+       FROM tickets t
+       LEFT JOIN services s ON t.service_id = s.id
+       WHERE t.user_privy_id = $1
+       ORDER BY t.created_at DESC`,
+      [privyId]
+    );
+    res.json({ tickets: result.rows });
+  } catch (error) {
+    console.error('Error fetching tickets:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Create ticket (after blockchain mint)
+app.post('/api/tickets', async (req, res) => {
+  try {
+    const { orderItemId, userPrivyId, serviceId, ticketNumber, blockchainAddress, txHash, qrHash } = req.body;
+    
+    const result = await pool.query(
+      `INSERT INTO tickets (order_item_id, user_privy_id, service_id, ticket_number, blockchain_address, tx_hash, qr_hash)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)
+       RETURNING *`,
+      [orderItemId, userPrivyId, serviceId, ticketNumber, blockchainAddress, txHash, qrHash]
+    );
+    
+    res.json({ success: true, ticket: result.rows[0] });
+  } catch (error) {
+    console.error('Error creating ticket:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Use ticket (mark as used)
+app.patch('/api/tickets/:id/use', async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    const result = await pool.query(
+      `UPDATE tickets SET is_used = true, used_at = CURRENT_TIMESTAMP, status = 'used' WHERE id = $1 RETURNING *`,
+      [id]
+    );
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Ticket not found' });
+    }
+    
+    res.json({ success: true, ticket: result.rows[0] });
+  } catch (error) {
+    console.error('Error using ticket:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Validate ticket (for QR scanning)
+app.post('/api/tickets/validate', async (req, res) => {
+  try {
+    const { ticketId, qrHash } = req.body;
+    
+    const result = await pool.query(
+      `SELECT t.*, s.title as service_title
+       FROM tickets t
+       LEFT JOIN services s ON t.service_id = s.id
+       WHERE t.id = $1 AND t.qr_hash = $2`,
+      [ticketId, qrHash]
+    );
+    
+    if (result.rows.length === 0) {
+      return res.json({ valid: false, error: 'Invalid ticket or QR code' });
+    }
+    
+    const ticket = result.rows[0];
+    
+    if (ticket.is_used) {
+      return res.json({ valid: false, error: 'Ticket already used', ticket });
+    }
+    
+    res.json({ valid: true, ticket });
+  } catch (error) {
+    console.error('Error validating ticket:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ============================================
+// VENDORS ROUTES
+// ============================================
+
+// Get all vendors
+app.get('/api/vendors', async (req, res) => {
+  try {
+    const result = await pool.query('SELECT * FROM vendors ORDER BY created_at DESC');
+    res.json({ vendors: result.rows });
+  } catch (error) {
+    console.error('Error fetching vendors:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Create vendor
+app.post('/api/vendors', async (req, res) => {
+  try {
+    const { ownerId, name, type, image, description } = req.body;
+    
+    const result = await pool.query(
+      `INSERT INTO vendors (owner_id, name, type, image, description)
+       VALUES ($1, $2, $3, $4, $5)
+       RETURNING *`,
+      [ownerId, name, type, image, description]
+    );
+    
+    res.json({ success: true, vendor: result.rows[0] });
+  } catch (error) {
+    console.error('Error creating vendor:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ============================================
 // CONFIGURACIÓN
 // ============================================
 

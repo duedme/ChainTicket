@@ -30,8 +30,8 @@ const ServicesManager = () => {
         });
     };
 
-    const handleSave = () => {
-        updateService(editingId, {
+    const handleSave = async () => {
+        await updateService(editingId, {
             ...formData,
             avgTime: Number(formData.avgTime),
             totalStock: Number(formData.totalStock)
@@ -40,20 +40,20 @@ const ServicesManager = () => {
         setScheduleEditId(null);
     };
 
-    const handleCreate = () => {
-        addService({
+    const handleCreate = async () => {
+        await addService({
             title: formData.title,
             image: formData.image || 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?q=80&w=2670&auto=format&fit=crop',
             avgTime: Number(formData.avgTime),
             totalStock: Number(formData.totalStock),
             schedule: formData.schedule
-        }, isGuest);
+        });
         setNewServiceMode(false);
         setFormData({ title: '', image: '', avgTime: '', totalStock: '', schedule: { openTime: '09:00', closeTime: '18:00', days: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'] } });
     };
 
-    const handleDelete = (id) => {
-        deleteService(id);
+    const handleDelete = async (id) => {
+        await deleteService(id);
         setDeleteConfirmId(null);
     };
 
@@ -310,7 +310,7 @@ const ServicesManager = () => {
                                                     </button>
                                                 ) : (
                                                     <button 
-                                                        onClick={() => toggleServiceActive(service.id, isGuest)} 
+                                                        onClick={() => toggleServiceActive(service.id)} 
                                                         className={`p-2 rounded-full transition-colors ${service.isActive ? 'hover:bg-green-500/20 text-green-400' : 'hover:bg-red-500/20 text-red-400'}`}
                                                         title={service.isActive ? 'Deactivate' : 'Activate'}
                                                     >

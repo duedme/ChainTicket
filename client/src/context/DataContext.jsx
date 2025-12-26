@@ -1,75 +1,274 @@
-import { createContext, useContext, useState, useCallback } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { useAuth } from './AuthContext';
 
 const DataContext = createContext();
 
 export const useData = () => useContext(DataContext);
 
-// Multiple Vendors/Establishments
-const VENDORS = [
-    { id: 1, name: 'Golden Bar & Lounge', type: 'Bar', image: 'https://images.unsplash.com/photo-1572116469696-31de0f17cc34?q=80&w=2574&auto=format&fit=crop' },
-    { id: 2, name: 'Premium Steakhouse', type: 'Restaurant', image: 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?q=80&w=2670&auto=format&fit=crop' },
-    { id: 3, name: 'Artisan Coffee Co.', type: 'Coffee', image: 'https://images.unsplash.com/photo-1501339847302-ac426a4a7cbb?q=80&w=2678&auto=format&fit=crop' },
-    { id: 4, name: 'Elite Events', type: 'Social Event', image: 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?q=80&w=2670&auto=format&fit=crop' },
-];
-
-// Services by Vendor
-const INITIAL_SERVICES = [
-    // Golden Bar & Lounge
-    { id: 1, vendorId: 1, title: 'VIP Table Service', image: 'https://images.unsplash.com/photo-1572116469696-31de0f17cc34?q=80&w=2574&auto=format&fit=crop', avgTime: 15, totalStock: 50, sold: 12, isActive: true, schedule: { openTime: '18:00', closeTime: '02:00', days: ['Thu', 'Fri', 'Sat'] } },
-    { id: 2, vendorId: 1, title: 'Bottle Service Premium', image: 'https://images.unsplash.com/photo-1470337458703-46ad1756a187?q=80&w=2669&auto=format&fit=crop', avgTime: 5, totalStock: 100, sold: 45, isActive: true, schedule: { openTime: '20:00', closeTime: '04:00', days: ['Fri', 'Sat'] } },
-    { id: 3, vendorId: 1, title: 'Cocktail Masterclass', image: 'https://images.unsplash.com/photo-1514362545857-3bc16c4c7d1b?q=80&w=2670&auto=format&fit=crop', avgTime: 30, totalStock: 20, sold: 8, isActive: true, schedule: { openTime: '17:00', closeTime: '20:00', days: ['Sat', 'Sun'] } },
-
-    // Premium Steakhouse
-    { id: 4, vendorId: 2, title: 'Wagyu Steak Experience', image: 'https://images.unsplash.com/photo-1546833999-b9f581a1996d?q=80&w=2670&auto=format&fit=crop', avgTime: 45, totalStock: 30, sold: 15, isActive: true, schedule: { openTime: '18:00', closeTime: '23:00', days: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] } },
-    { id: 5, vendorId: 2, title: 'Chef\'s Tasting Menu', image: 'https://images.unsplash.com/photo-1414235077428-338989a2e8c0?q=80&w=2670&auto=format&fit=crop', avgTime: 60, totalStock: 25, sold: 10, isActive: true, schedule: { openTime: '19:00', closeTime: '22:00', days: ['Fri', 'Sat'] } },
-    { id: 6, vendorId: 2, title: 'Wine Pairing Dinner', image: 'https://images.unsplash.com/photo-1510812431401-41d2bd2722f3?q=80&w=2670&auto=format&fit=crop', avgTime: 50, totalStock: 20, sold: 5, isActive: false, schedule: { openTime: '19:00', closeTime: '23:00', days: ['Sat'] } },
-
-    // Artisan Coffee Co.
-    { id: 7, vendorId: 3, title: 'Specialty Pour Over', image: 'https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?q=80&w=2670&auto=format&fit=crop', avgTime: 8, totalStock: 100, sold: 60, isActive: true, schedule: { openTime: '07:00', closeTime: '18:00', days: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] } },
-    { id: 8, vendorId: 3, title: 'Latte Art Workshop', image: 'https://images.unsplash.com/photo-1511920170033-f8396924c348?q=80&w=2574&auto=format&fit=crop', avgTime: 25, totalStock: 15, sold: 7, isActive: true, schedule: { openTime: '10:00', closeTime: '14:00', days: ['Sat', 'Sun'] } },
-    { id: 9, vendorId: 3, title: 'Cold Brew Flight', image: 'https://images.unsplash.com/photo-1461023058943-07fcbe16d735?q=80&w=2669&auto=format&fit=crop', avgTime: 5, totalStock: 80, sold: 40, isActive: true, schedule: { openTime: '08:00', closeTime: '17:00', days: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'] } },
-
-    // Elite Events - Social Events
-    { id: 10, vendorId: 4, title: 'VIP Gala Night', image: 'https://images.unsplash.com/photo-1492684223066-81342ee5ff30?q=80&w=2670&auto=format&fit=crop', avgTime: 180, totalStock: 200, sold: 75, isActive: true, schedule: { openTime: '20:00', closeTime: '03:00', days: ['Sat'] } },
-    { id: 11, vendorId: 4, title: 'Exclusive Networking Party', image: 'https://images.unsplash.com/photo-1511795409834-ef04bbd61622?q=80&w=2669&auto=format&fit=crop', avgTime: 120, totalStock: 150, sold: 45, isActive: true, schedule: { openTime: '18:00', closeTime: '22:00', days: ['Thu', 'Fri'] } },
-    { id: 12, vendorId: 4, title: 'Private Concert Access', image: 'https://images.unsplash.com/photo-1470229722913-7c0e2dbbafd3?q=80&w=2670&auto=format&fit=crop', avgTime: 240, totalStock: 500, sold: 320, isActive: true, schedule: { openTime: '19:00', closeTime: '23:00', days: ['Fri', 'Sat'] } },
-    { id: 13, vendorId: 4, title: 'Art Exhibition Opening', image: 'https://images.unsplash.com/photo-1531243269054-5ebf6f34081e?q=80&w=2670&auto=format&fit=crop', avgTime: 90, totalStock: 100, sold: 28, isActive: true, schedule: { openTime: '11:00', closeTime: '20:00', days: ['Wed', 'Thu', 'Fri', 'Sat', 'Sun'] } },
-];
+const API_URL = '';
 
 export const DataProvider = ({ children }) => {
-    const [vendors] = useState(VENDORS);
-    const [services, setServices] = useState(INITIAL_SERVICES);
+    const { user, isGuest } = useAuth();
+    const [vendors, setVendors] = useState([]);
+    const [services, setServices] = useState([]);
     const [orders, setOrders] = useState([]);
     const [cart, setCart] = useState([]);
+    const [tickets, setTickets] = useState([]);
+    const [queueInfo, setQueueInfo] = useState({ pending_orders: 0, total_wait_time: 0 });
+    const [loading, setLoading] = useState(true);
 
-    const updateService = (id, updates) => {
-        setServices(prev => prev.map(s => s.id === id ? { ...s, ...updates } : s));
+    // Fetch all services for clients to browse
+    const fetchServices = useCallback(async (activeOnly = false) => {
+        try {
+            const url = activeOnly 
+                ? `${API_URL}/api/services?activeOnly=true`
+                : `${API_URL}/api/services`;
+            const response = await fetch(url);
+            const data = await response.json();
+            if (data.services) {
+                const formattedServices = data.services.map(s => ({
+                    id: s.id,
+                    vendorId: s.vendor_id,
+                    title: s.title,
+                    description: s.description,
+                    image: s.image,
+                    avgTime: s.avg_time,
+                    totalStock: s.total_stock,
+                    sold: s.sold || 0,
+                    price: parseFloat(s.price) || 0,
+                    isActive: s.is_active,
+                    schedule: {
+                        openTime: s.schedule_open_time,
+                        closeTime: s.schedule_close_time,
+                        days: s.schedule_days || []
+                    }
+                }));
+                setServices(formattedServices);
+            }
+        } catch (error) {
+            console.error('Error fetching services:', error);
+        }
+    }, []);
+
+    // Fetch services owned by the current user (for admin)
+    const fetchMyServices = useCallback(async () => {
+        if (!user?.privyId || isGuest) return;
+        try {
+            const response = await fetch(`${API_URL}/api/services/owner/${user.privyId}`);
+            const data = await response.json();
+            if (data.services) {
+                const formattedServices = data.services.map(s => ({
+                    id: s.id,
+                    vendorId: s.vendor_id,
+                    title: s.title,
+                    description: s.description,
+                    image: s.image,
+                    avgTime: s.avg_time,
+                    totalStock: s.total_stock,
+                    sold: s.sold || 0,
+                    price: parseFloat(s.price) || 0,
+                    isActive: s.is_active,
+                    schedule: {
+                        openTime: s.schedule_open_time,
+                        closeTime: s.schedule_close_time,
+                        days: s.schedule_days || []
+                    }
+                }));
+                setServices(formattedServices);
+            }
+        } catch (error) {
+            console.error('Error fetching my services:', error);
+        }
+    }, [user?.privyId, isGuest]);
+
+    // Fetch orders for the current user
+    const fetchMyOrders = useCallback(async () => {
+        if (!user?.privyId || isGuest) return;
+        try {
+            const response = await fetch(`${API_URL}/api/orders/user/${user.privyId}`);
+            const data = await response.json();
+            if (data.orders) {
+                setOrders(data.orders.map(o => ({
+                    id: o.order_number,
+                    dbId: o.id,
+                    items: o.items?.filter(i => i.id) || [],
+                    status: o.status,
+                    timestamp: new Date(o.created_at).getTime(),
+                    estimatedWait: o.estimated_wait,
+                    queuePosition: o.queue_position,
+                    totalAmount: parseFloat(o.total_amount) || 0
+                })));
+            }
+        } catch (error) {
+            console.error('Error fetching orders:', error);
+        }
+    }, [user?.privyId, isGuest]);
+
+    // Fetch orders for vendor (admin)
+    const fetchVendorOrders = useCallback(async () => {
+        if (!user?.privyId || isGuest) return;
+        try {
+            const response = await fetch(`${API_URL}/api/orders/vendor/${user.privyId}`);
+            const data = await response.json();
+            if (data.orders) {
+                setOrders(data.orders.map(o => ({
+                    id: o.order_number,
+                    dbId: o.id,
+                    customerName: o.customer_name,
+                    items: o.items?.filter(i => i.id) || [],
+                    status: o.status,
+                    timestamp: new Date(o.created_at).getTime(),
+                    estimatedWait: o.estimated_wait,
+                    queuePosition: o.queue_position
+                })));
+            }
+        } catch (error) {
+            console.error('Error fetching vendor orders:', error);
+        }
+    }, [user?.privyId, isGuest]);
+
+    // Fetch tickets for user
+    const fetchMyTickets = useCallback(async () => {
+        if (!user?.privyId || isGuest) return;
+        try {
+            const response = await fetch(`${API_URL}/api/tickets/user/${user.privyId}`);
+            const data = await response.json();
+            if (data.tickets) {
+                setTickets(data.tickets);
+            }
+        } catch (error) {
+            console.error('Error fetching tickets:', error);
+        }
+    }, [user?.privyId, isGuest]);
+
+    // Fetch queue info
+    const fetchQueueInfo = useCallback(async () => {
+        try {
+            const response = await fetch(`${API_URL}/api/queue/info`);
+            const data = await response.json();
+            setQueueInfo(data);
+        } catch (error) {
+            console.error('Error fetching queue info:', error);
+        }
+    }, []);
+
+    // Load initial data
+    useEffect(() => {
+        const loadData = async () => {
+            setLoading(true);
+            await fetchServices(true);
+            await fetchQueueInfo();
+            if (user?.privyId && !isGuest) {
+                if (user.role === 'admin') {
+                    await fetchMyServices();
+                    await fetchVendorOrders();
+                } else {
+                    await fetchMyOrders();
+                    await fetchMyTickets();
+                }
+            }
+            setLoading(false);
+        };
+        loadData();
+    }, [user?.privyId, user?.role, isGuest]);
+
+    // Service CRUD operations
+    const addService = async (newService) => {
+        try {
+            const response = await fetch(`${API_URL}/api/services`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    ownerPrivyId: user?.privyId,
+                    title: newService.title,
+                    description: newService.description,
+                    image: newService.image,
+                    avgTime: newService.avgTime,
+                    totalStock: newService.totalStock,
+                    price: newService.price || 0,
+                    schedule: newService.schedule,
+                    isActive: isGuest ? false : true
+                })
+            });
+            const data = await response.json();
+            if (data.success) {
+                await fetchMyServices();
+                return data.service;
+            }
+        } catch (error) {
+            console.error('Error adding service:', error);
+        }
+        return null;
     };
 
-    const addService = (newService, isGuest = false) => {
-        setServices(prev => [...prev, { 
-            ...newService, 
-            id: Date.now(), 
-            sold: 0, 
-            isActive: isGuest ? false : true,
-            isGuestCreated: isGuest,
-            schedule: newService.schedule || { openTime: '09:00', closeTime: '18:00', days: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'] }
-        }]);
+    const updateService = async (id, updates) => {
+        try {
+            const response = await fetch(`${API_URL}/api/services/${id}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    title: updates.title,
+                    description: updates.description,
+                    image: updates.image,
+                    avgTime: updates.avgTime,
+                    totalStock: updates.totalStock,
+                    price: updates.price,
+                    isActive: updates.isActive,
+                    schedule: updates.schedule
+                })
+            });
+            const data = await response.json();
+            if (data.success) {
+                setServices(prev => prev.map(s => s.id === id ? {
+                    ...s,
+                    ...updates,
+                    schedule: updates.schedule || s.schedule
+                } : s));
+            }
+        } catch (error) {
+            console.error('Error updating service:', error);
+        }
     };
 
-    const deleteService = (id) => {
-        setServices(prev => prev.filter(s => s.id !== id));
+    const deleteService = async (id) => {
+        try {
+            const response = await fetch(`${API_URL}/api/services/${id}`, {
+                method: 'DELETE'
+            });
+            const data = await response.json();
+            if (data.success) {
+                setServices(prev => prev.filter(s => s.id !== id));
+            }
+        } catch (error) {
+            console.error('Error deleting service:', error);
+        }
     };
 
-    const toggleServiceActive = (id, isGuest = false) => {
+    const toggleServiceActive = async (id) => {
         if (isGuest) {
-            console.warn('Guests cannot activate services. Please sign in first.');
+            console.warn('Guests cannot activate services');
             return false;
         }
-        setServices(prev => prev.map(s => s.id === id ? { ...s, isActive: !s.isActive } : s));
-        return true;
+        try {
+            const response = await fetch(`${API_URL}/api/services/${id}/toggle`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ isGuest })
+            });
+            const data = await response.json();
+            if (data.success) {
+                setServices(prev => prev.map(s => 
+                    s.id === id ? { ...s, isActive: data.service.is_active } : s
+                ));
+                return true;
+            }
+        } catch (error) {
+            console.error('Error toggling service:', error);
+        }
+        return false;
     };
 
+    // Cart operations
     const addToCart = (serviceId) => {
         const service = services.find(s => s.id === serviceId);
         if (!service || service.sold >= service.totalStock || !service.isActive) return null;
@@ -85,6 +284,7 @@ export const DataProvider = ({ children }) => {
             }
             return [...prev, { serviceId, quantity: 1, service }];
         });
+        return service;
     };
 
     const removeFromCart = (serviceId) => {
@@ -103,33 +303,67 @@ export const DataProvider = ({ children }) => {
 
     const clearCart = () => setCart([]);
 
-    const createOrderFromCart = () => {
-        if (cart.length === 0) return null;
+    // Create order from cart
+    const createOrderFromCart = async () => {
+        if (cart.length === 0 || !user?.privyId) return null;
 
-        const maxTime = Math.max(...cart.map(item => item.service.avgTime));
-
-        cart.forEach(item => {
-            updateService(item.serviceId, {
-                sold: item.service.sold + item.quantity
-            });
-        });
-
-        const newOrder = {
-            id: `ORD-${Date.now().toString().slice(-6)}`,
-            items: cart.map(item => ({
+        try {
+            const items = cart.map(item => ({
                 serviceId: item.serviceId,
                 serviceName: item.service.title,
                 quantity: item.quantity,
-                avgTime: item.service.avgTime
-            })),
-            status: 'pending',
-            timestamp: Date.now(),
-            estimatedWait: maxTime
-        };
+                avgTime: item.service.avgTime,
+                price: item.service.price || 0
+            }));
 
-        setOrders(prev => [...prev, newOrder]);
-        clearCart();
-        return newOrder;
+            const response = await fetch(`${API_URL}/api/orders`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    userPrivyId: user.privyId,
+                    vendorId: null,
+                    items
+                })
+            });
+
+            const data = await response.json();
+            if (data.success) {
+                clearCart();
+                await fetchMyOrders();
+                await fetchServices(true);
+                await fetchQueueInfo();
+                return {
+                    id: data.order.order_number,
+                    items,
+                    status: 'pending',
+                    estimatedWait: data.estimatedWait,
+                    queuePosition: data.queuePosition
+                };
+            }
+        } catch (error) {
+            console.error('Error creating order:', error);
+        }
+        return null;
+    };
+
+    // Update order status (for admin)
+    const updateOrderStatus = async (orderId, status) => {
+        try {
+            const response = await fetch(`${API_URL}/api/orders/${orderId}/status`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ status })
+            });
+            const data = await response.json();
+            if (data.success) {
+                setOrders(prev => prev.map(o => 
+                    o.dbId === orderId ? { ...o, status } : o
+                ));
+                await fetchQueueInfo();
+            }
+        } catch (error) {
+            console.error('Error updating order status:', error);
+        }
     };
 
     return (
@@ -138,6 +372,15 @@ export const DataProvider = ({ children }) => {
             services,
             orders,
             cart,
+            tickets,
+            queueInfo,
+            loading,
+            fetchServices,
+            fetchMyServices,
+            fetchMyOrders,
+            fetchVendorOrders,
+            fetchMyTickets,
+            fetchQueueInfo,
             updateService,
             addService,
             deleteService,
@@ -147,6 +390,7 @@ export const DataProvider = ({ children }) => {
             updateCartQuantity,
             clearCart,
             createOrderFromCart,
+            updateOrderStatus,
             setOrders
         }}>
             {children}

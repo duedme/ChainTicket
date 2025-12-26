@@ -67,4 +67,4 @@ build = ["bash", "-c", "cd client && npm install && npm run build"]
 [userenv]
 
 [userenv.shared]
-VITE_API_URL = "https://e4a1687d-27b4-4db7-8e2e-bb3078d7daf4-00-2klvaj33tlc12.picard.replit.dev"
+VITE_API_URL = "https://e4a1687d-27b4-4db7-8e2e-bb3078d7daf4-00-2klvaj33tlc12.picard.replit.dev:3001"

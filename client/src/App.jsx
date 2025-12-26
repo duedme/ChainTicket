@@ -17,8 +17,8 @@ import Profile from './pages/client/Profile';
 function App() {
   return (
     <Router>
-      <DataProvider>
-        <AuthProvider>
+      <AuthProvider>
+        <DataProvider>
           <Routes>
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Registration />} />
@@ -39,8 +39,8 @@ function App() {
 
             <Route path="/" element={<Navigate to="/login" replace />} />
           </Routes>
-        </AuthProvider>
-      </DataProvider>
+        </DataProvider>
+      </AuthProvider>
     </Router>
   );
 }
