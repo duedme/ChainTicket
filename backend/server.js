@@ -3,6 +3,7 @@ import cors from 'cors';
 import { Aptos, AptosConfig } from '@aptos-labs/ts-sdk';
 import crypto from 'crypto';
 import pg from 'pg';
+import ticketPurchaseRoutes from './routes/ticketPurchase.js';
 
 const { Pool } = pg;
 
@@ -21,6 +22,9 @@ const pool = new Pool({
 // ============================================
 // USER ROUTES
 // ============================================
+
+// Nueva ruta de compra con x402
+app.use('/api/tickets', ticketPurchaseRoutes);
 
 // Get user by Privy ID
 app.get('/api/users/:privyId', async (req, res) => {
@@ -1146,4 +1150,6 @@ const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
   console.log(`💰 Merchant wallet: ${MERCHANT_WALLET}`);
+  console.log(`💰 x402 payments enabled`);
+
 });
