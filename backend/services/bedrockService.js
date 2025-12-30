@@ -1,0 +1,231 @@
+
+// backend/services/bedrockService.js
+// ============================================
+// Servicio de AWS Bedrock para ChainTicket
+// ============================================
+
+import { 
+  BedrockRuntimeClient, 
+  InvokeModelCommand,
+  InvokeModelWithResponseStreamCommand 
+} from '@aws-sdk/client-bedrock-runtime';
+import { getBusinessContextForAI, saveAIConversation } from './dynamoDBService.js';
+
+// Configuración del cliente
+const bedrockClient = new BedrockRuntimeClient({
+  region: process.env.AWS_REGION || 'us-east-1',
+  credentials: {
+    accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+  },
+});
+
+// Modelo por defecto (Claude 3 Haiku es rápido y económico)
+const DEFAULT_MODEL = process.env.BEDROCK_MODEL_ID || 'anthropic.claude-3-haiku-20240307-v1:0';
+
+// ============================================
+// PROMPTS TEMPLATES
+// ============================================
+
+const SYSTEM_PROMPT = `Eres un asistente de negocios experto para ChainTicket, una plataforma de boletos tokenizados.
+Tu rol es ayudar a administradores de negocios (bares, restaurantes, eventos, etc.) a:
+1. Determinar cuántos tickets/boletos generar para eventos
+2. Analizar patrones de ventas y demanda
+3. Optimizar precios y disponibilidad
+4. Dar recomendaciones basadas en datos históricos
+
+REGLAS:
+- Responde en español de manera concisa y profesional
+- Basa tus recomendaciones en los datos proporcionados
+- Si no tienes suficientes datos, indica qué información adicional necesitas
+- Incluye números específicos cuando sea posible
+- Considera factores como día de la semana, temporada, y eventos especiales`;
+
+/**
+ * Construir el contexto del prompt basado en datos del negocio
+ */
+function buildContextPrompt(businessContext) {
+  const { metrics, weeklyHistory, recentConversations } = businessContext;
+
+  let context = '\n### DATOS DEL NEGOCIO:\n';
+
+  if (metrics && Object.keys(metrics).length > 0) {
+    context += `
+**Información General:**
+- Nombre: ${metrics.businessName || 'No especificado'}
+- Tipo: ${metrics.businessType || 'No especificado'}
+- Capacidad máxima: ${metrics.maxCapacity || 'No especificada'}
+
+**Métricas Actuales:**
+- Promedio tickets/viernes: ${metrics.avgTicketsPerFriday || 'N/A'}
+- Promedio tickets/sábado: ${metrics.avgTicketsPerSaturday || 'N/A'}
+- Hora pico: ${metrics.peakHour || 'N/A'}
+- Tasa de sold-out: ${metrics.selloutRate ? (metrics.selloutRate * 100).toFixed(1) + '%' : 'N/A'}
+- Tasa retorno clientes: ${metrics.customerReturnRate || 'N/A'}%
+`;
+  }
+
+  if (weeklyHistory && weeklyHistory.length > 0) {
+    context += '\n**Historial Reciente (últimas semanas):**\n';
+    weeklyHistory.forEach(week => {
+      context += `- ${week.weekId}: ${week.ticketsSold || 0} vendidos, $${week.revenue || 0} ingresos, ${week.checkIns || 0} check-ins\n`;
+    });
+  }
+
+  if (recentConversations && recentConversations.length > 0) {
+    context += '\n**Recomendaciones anteriores:**\n';
+    const lastConv = recentConversations[0];
+    if (lastConv.recommendation) {
+      context += `- Última recomendación: "${lastConv.recommendation}"\n`;
+      context += `- Feedback: ${lastConv.feedback || 'Sin feedback'}\n`;
+    }
+  }
+
+  return context;
+}
+
+// ============================================
+// FUNCIONES PRINCIPALES
+// ============================================
+
+/**
+ * Generar recomendación de tickets
+ */
+export async function generateTicketRecommendation(businessId, question) {
+  try {
+    // Obtener contexto del negocio
+    const businessContext = await getBusinessContextForAI(businessId);
+    const contextPrompt = buildContextPrompt(businessContext);
+
+    // Construir el mensaje
+    const messages = [
+      {
+        role: 'user',
+        content: `${contextPrompt}\n\n### PREGUNTA DEL ADMINISTRADOR:\n${question}\n\nPor favor, proporciona una recomendación específica y justificada.`
+      }
+    ];
+
+    // Invocar Bedrock
+    const response = await invokeModel(messages);
+
+    // Guardar la conversación para contexto futuro
+    await saveAIConversation(businessId, {
+      question,
+      recommendation: response,
+      context: {
+        metricsUsed: !!businessContext.metrics,
+        historyWeeks: businessContext.weeklyHistory?.length || 0,
+      },
+    });
+
+    return {
+      success: true,
+      recommendation: response,
+      context: {
+        businessName: businessContext.metrics?.businessName,
+        dataPoints: businessContext.weeklyHistory?.length || 0,
+      },
+    };
+  } catch (error) {
+    console.error('Error generando recomendación:', error);
+    return {
+      success: false,
+      error: error.message,
+    };
+  }
+}
+
+/**
+ * Invocar modelo de Bedrock (Claude)
+ */
+async function invokeModel(messages, options = {}) {
+  const modelId = options.modelId || DEFAULT_MODEL;
+
+  const payload = {
+    anthropic_version: 'bedrock-2023-05-31',
+    max_tokens: options.maxTokens || 1024,
+    system: SYSTEM_PROMPT,
+    messages: messages,
+  };
+
+  const command = new InvokeModelCommand({
+    modelId,
+    contentType: 'application/json',
+    accept: 'application/json',
+    body: JSON.stringify(payload),
+  });
+
+  const response = await bedrockClient.send(command);
+  const responseBody = JSON.parse(new TextDecoder().decode(response.body));
+
+  return responseBody.content[0].text;
+}
+
+/**
+ * Invocar modelo con streaming (para respuestas largas)
+ */
+export async function invokeModelStreaming(messages, onChunk) {
+  const payload = {
+    anthropic_version: 'bedrock-2023-05-31',
+    max_tokens: 2048,
+    system: SYSTEM_PROMPT,
+    messages: messages,
+  };
+
+  const command = new InvokeModelWithResponseStreamCommand({
+    modelId: DEFAULT_MODEL,
+    contentType: 'application/json',
+    accept: 'application/json',
+    body: JSON.stringify(payload),
+  });
+
+  const response = await bedrockClient.send(command);
+
+  let fullResponse = '';
+  for await (const event of response.body) {
+    if (event.chunk) {
+      const chunk = JSON.parse(new TextDecoder().decode(event.chunk.bytes));
+      if (chunk.type === 'content_block_delta') {
+        const text = chunk.delta?.text || '';
+        fullResponse += text;
+        if (onChunk) onChunk(text);
+      }
+    }
+  }
+
+  return fullResponse;
+}
+
+/**
+ * Analizar patrones de demanda
+ */
+export async function analyzeDemandPatterns(businessId) {
+  const question = `Basándote en los datos históricos disponibles:
+1. ¿Cuáles son los días de mayor demanda?
+2. ¿Hay patrones estacionales visibles?
+3. ¿Cuál es la tendencia general (crecimiento/decrecimiento)?
+4. ¿Qué acciones recomiendas para optimizar las ventas?`;
+
+  return generateTicketRecommendation(businessId, question);
+}
+
+/**
+ * Sugerir precio óptimo
+ */
+export async function suggestOptimalPricing(businessId, eventDetails) {
+  const question = `Para el siguiente evento: ${JSON.stringify(eventDetails)}
+
+Considerando los datos históricos y el tipo de evento:
+1. ¿Cuál sería el precio óptimo por ticket?
+2. ¿Deberíamos tener diferentes niveles de precio (early bird, regular, VIP)?
+3. ¿Cuántos tickets en cada categoría?`;
+
+  return generateTicketRecommendation(businessId, question);
+}
+
+export default {
+  generateTicketRecommendation,
+  invokeModelStreaming,
+  analyzeDemandPatterns,
+  suggestOptimalPricing,
+};
