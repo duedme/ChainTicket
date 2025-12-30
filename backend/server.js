@@ -1,5 +1,6 @@
 import express from 'express';
 import cors from 'cors';
+import aiRoutes from './routes/aiRoutes.js';
 import { Aptos, AptosConfig } from '@aptos-labs/ts-sdk';
 import crypto from 'crypto';
 import pg from 'pg';
@@ -1141,6 +1142,8 @@ app.post('/api/seed', async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 });
+
+app.use('/api/ai', aiRoutes);
 
 // ============================================
 // SERVIDOR

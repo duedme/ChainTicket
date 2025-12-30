@@ -21,25 +21,26 @@ const bedrockClient = new BedrockRuntimeClient({
 });
 
 // Modelo por defecto (Claude 3 Haiku es rápido y económico)
-const DEFAULT_MODEL = process.env.BEDROCK_MODEL_ID || 'anthropic.claude-3-haiku-20240307-v1:0';
+const DEFAULT_MODEL = process.env.BEDROCK_MODEL_ID || 'amazon.titan-text-express-v1:0';
 
 // ============================================
 // PROMPTS TEMPLATES
 // ============================================
 
-const SYSTEM_PROMPT = `Eres un asistente de negocios experto para ChainTicket, una plataforma de boletos tokenizados.
-Tu rol es ayudar a administradores de negocios (bares, restaurantes, eventos, etc.) a:
-1. Determinar cuántos tickets/boletos generar para eventos
-2. Analizar patrones de ventas y demanda
-3. Optimizar precios y disponibilidad
-4. Dar recomendaciones basadas en datos históricos
+const SYSTEM_PROMPT = `Eres un asistente experto para ChainTicket, plataforma de boletos tokenizados en blockchain.
+
+Ayuda a administradores de negocios a:
+1. Calcular cuántos tickets/boletos generar
+2. Analizar ventas y demanda
+3. Optimizar precios y horarios
+4. Basar recomendaciones en datos históricos
 
 REGLAS:
-- Responde en español de manera concisa y profesional
-- Basa tus recomendaciones en los datos proporcionados
-- Si no tienes suficientes datos, indica qué información adicional necesitas
-- Incluye números específicos cuando sea posible
-- Considera factores como día de la semana, temporada, y eventos especiales`;
+- Responde en español
+- Sé conciso y específico con números
+- Usa datos proporcionados para justificar
+- Si faltan datos, pide información específica`;
+
 
 /**
  * Construir el contexto del prompt basado en datos del negocio
@@ -136,30 +137,34 @@ export async function generateTicketRecommendation(businessId, question) {
 }
 
 /**
- * Invocar modelo de Bedrock (Claude)
+ * Invocar modelo de Bedrock (Titan)
  */
 async function invokeModel(messages, options = {}) {
-  const modelId = options.modelId || DEFAULT_MODEL;
-
-  const payload = {
-    anthropic_version: 'bedrock-2023-05-31',
-    max_tokens: options.maxTokens || 1024,
-    system: SYSTEM_PROMPT,
-    messages: messages,
-  };
-
-  const command = new InvokeModelCommand({
-    modelId,
-    contentType: 'application/json',
-    accept: 'application/json',
-    body: JSON.stringify(payload),
-  });
-
-  const response = await bedrockClient.send(command);
-  const responseBody = JSON.parse(new TextDecoder().decode(response.body));
-
-  return responseBody.content[0].text;
-}
+    const modelId = options.modelId || DEFAULT_MODEL;
+  
+    const payload = {
+      inputText: messages[0].content,  // Titan usa inputText directo
+      textGenerationConfig: {
+        maxTokenCount: options.maxTokens || 1024,
+        temperature: 0.7,
+        topP: 0.9
+      }
+    };
+  
+    const command = new InvokeModelCommand({
+      modelId,
+      contentType: 'application/json',
+      accept: 'application/json',
+      body: JSON.stringify(payload),
+    });
+  
+    const response = await bedrockClient.send(command);
+    const responseBody = JSON.parse(new TextDecoder().decode(response.body));
+  
+    // Titan devuelve outputText
+    return responseBody.outputText;
+  }
+  
 
 /**
  * Invocar modelo con streaming (para respuestas largas)

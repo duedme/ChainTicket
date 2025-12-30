@@ -314,8 +314,6 @@ resource "aws_iam_user_policy" "backend_user_policy" {
           "bedrock:InvokeModelWithResponseStream"
         ]
         Resource = [
-          "arn:aws:bedrock:${var.aws_region}::foundation-model/anthropic.claude-3-sonnet-*",
-          "arn:aws:bedrock:${var.aws_region}::foundation-model/anthropic.claude-3-haiku-*",
           "arn:aws:bedrock:${var.aws_region}::foundation-model/amazon.titan-*"
         ]
       }

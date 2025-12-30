@@ -9,6 +9,9 @@
   },
   "dependencies": {
     "@aptos-labs/ts-sdk": "^5.2.0",
+    "@aws-sdk/client-bedrock-runtime": "^3.958.0",
+    "@aws-sdk/client-dynamodb": "^3.958.0",
+    "@aws-sdk/lib-dynamodb": "^3.958.0",
     "@coinbase/x402": "^2.1.0",
     "cors": "^2.8.5",
     "dotenv": "^16.6.1",
