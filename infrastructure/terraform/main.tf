@@ -42,7 +42,7 @@ provider "aws" {
 # Tabla principal de métricas de negocios para contexto de IA
 resource "aws_dynamodb_table" "business_metrics" {
   name         = "${var.project_name}-business-metrics-${var.environment}"
-  billing_mode = "PAY_PER_REQUEST"  # Serverless - paga solo por uso
+  billing_mode = "PAY_PER_REQUEST" # Serverless - paga solo por uso
 
   # Partition Key: businessId
   hash_key = "pk"
@@ -84,7 +84,7 @@ resource "aws_dynamodb_table" "business_metrics" {
   }
 
   tags = {
-    Name = "Business Metrics Table"
+    Name    = "Business Metrics Table"
     Purpose = "AI Context and Business Analytics"
   }
 }
@@ -94,8 +94,8 @@ resource "aws_dynamodb_table" "sales_history" {
   name         = "${var.project_name}-sales-history-${var.environment}"
   billing_mode = "PAY_PER_REQUEST"
 
-  hash_key  = "pk"      # BUSINESS#<id>
-  range_key = "sk"      # SALE#<timestamp> o DAY#<date>
+  hash_key  = "pk" # BUSINESS#<id>
+  range_key = "sk" # SALE#<timestamp> o DAY#<date>
 
   attribute {
     name = "pk"
@@ -126,7 +126,7 @@ resource "aws_dynamodb_table" "sales_history" {
   }
 
   tags = {
-    Name = "Sales History Table"
+    Name    = "Sales History Table"
     Purpose = "Transaction History for Analytics"
   }
 }
@@ -136,8 +136,8 @@ resource "aws_dynamodb_table" "ai_conversations" {
   name         = "${var.project_name}-ai-conversations-${var.environment}"
   billing_mode = "PAY_PER_REQUEST"
 
-  hash_key  = "pk"      # BUSINESS#<id> o USER#<id>
-  range_key = "sk"      # CONV#<timestamp>
+  hash_key  = "pk" # BUSINESS#<id> o USER#<id>
+  range_key = "sk" # CONV#<timestamp>
 
   attribute {
     name = "pk"
@@ -155,7 +155,7 @@ resource "aws_dynamodb_table" "ai_conversations" {
   }
 
   tags = {
-    Name = "AI Conversations Table"
+    Name    = "AI Conversations Table"
     Purpose = "Store AI interaction history"
   }
 }
@@ -267,7 +267,7 @@ resource "aws_iam_user" "backend_user" {
   name = "${var.project_name}-backend-user-${var.environment}"
 
   tags = {
-    Name = "Backend Service User"
+    Name    = "Backend Service User"
     Purpose = "Access DynamoDB and Bedrock from backend"
   }
 }

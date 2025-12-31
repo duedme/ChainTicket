@@ -68,7 +68,12 @@ resource "aws_amplify_branch" "main" {
   framework         = "React"
 
   environment_variables = {
-    ENV = var.environment
+    ENV                       = var.environment
+    VITE_PRIVY_APP_ID         = var.privy_app_id # ← viene de terraform.tfvars
+    VITE_MOVEMENT_RPC_URL     = "https://aptos.testnet.porto.movementlabs.xyz/v1"
+    VITE_MOVEMENT_INDEXER_URL = "https://indexer.testnet.porto.movementnetwork.xyz/v1/graphql"
+    VITE_CONTRACT_ADDRESS     = "0x0a10dde9540e854e79445a37ed6636086128cfc4d13638077e983a14a4398056"
+    VITE_API_URL              = var.backend_api_url # ← viene de terraform.tfvars
   }
 
   tags = {

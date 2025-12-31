@@ -29,7 +29,7 @@ variable "project_name" {
 variable "backend_role_arn" {
   description = "ARN of the backend service role (EC2/ECS/Lambda)"
   type        = string
-  default     = ""  # Dejar vacío si solo usas IAM User
+  default     = "" # Dejar vacío si solo usas IAM User
 }
 
 # ===== Amplify Variables =====
@@ -62,7 +62,7 @@ variable "privy_app_id" {
 variable "backend_api_url" {
   description = "Backend API URL"
   type        = string
-  default     = "http://localhost:3001"  # Cambiar cuando deploys backend
+  default     = "http://localhost:3001" # Cambiar cuando deploys backend
 }
 
 variable "custom_domain" {
