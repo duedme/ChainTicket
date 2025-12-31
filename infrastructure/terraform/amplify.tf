@@ -8,16 +8,16 @@ resource "aws_amplify_app" "chainticket" {
   access_token = var.github_access_token
 
   # Build settings para Vite + React
-  build_spec = <<-EOT
+    build_spec = <<-EOT
     version: 1
     frontend:
       phases:
         preBuild:
           commands:
-            - 'npm ci --cache .npm --prefer-offline --prefix client'
+            - cd client && npm ci --cache .npm --prefer-offline
         build:
           commands:
-            - 'npm run build --prefix client'
+            - cd client && npm run build
       artifacts:
         baseDirectory: client/dist
         files:
