@@ -7,28 +7,16 @@ resource "aws_amplify_app" "chainticket" {
   repository   = var.github_repo_url
   access_token = var.github_access_token
 
-<<<<<<< Updated upstream
-  # Build settings para Vite + React
-    build_spec = <<-EOT
-=======
   build_spec = <<-EOT
->>>>>>> Stashed changes
     version: 1
     frontend:
       phases:
         preBuild:
           commands:
-<<<<<<< Updated upstream
-            - cd client && npm ci --cache .npm --prefer-offline
-        build:
-          commands:
-            - cd client && npm run build
-=======
             - npm ci --cache .npm --prefer-offline --prefix client
         build:
           commands:
             - npm run build --prefix client
->>>>>>> Stashed changes
       artifacts:
         baseDirectory: client/dist
         files:
