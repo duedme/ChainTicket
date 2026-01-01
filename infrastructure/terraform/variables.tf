@@ -83,3 +83,26 @@ variable "payment_receiver_address" {
   type        = string
   default     = ""
 }
+
+variable "the_bucket_name" {
+  description = "S3 bucket name for the backend lambda"
+  type        = string
+  default     = "restake-watch"
+}
+
+variable "the_bucket_path" {
+  description = "S3 bucket path for the backend lambda"
+  type        = string
+  default     = "ChainTicket/"
+}
+variable "github_owner" {
+  description = "GitHub username or organization"
+  type        = string
+  default     = "duedme"
+}
+
+variable "github_repo" {
+  description = "GitHub repository name"
+  type        = string
+  default     = "ChainTicket"
+}

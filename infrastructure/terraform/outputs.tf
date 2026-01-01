@@ -82,12 +82,27 @@ output "amplify_instructions" {
   EOT
 }
 
-output "api_gateway_url" {
+/* output "api_gateway_url" {
   description = "URL of the API Gateway"
   value       = aws_apigatewayv2_api.backend.api_endpoint
-}
+} */
 
-output "lambda_function_name" {
+/* output "lambda_function_name" {
   description = "Name of the Lambda function"
   value       = aws_lambda_function.backend_api.function_name
+} */
+
+output "backend_url" {
+  description = "URL del Backend API"
+  value       = "http://${aws_eip.backend.public_ip}:3001"
+}
+
+output "backend_public_ip" {
+  description = "IP pública del backend"
+  value       = aws_eip.backend.public_ip
+}
+
+output "ssh_command" {
+  description = "Comando SSH para conectar (necesitas key pair)"
+  value       = "ssh ec2-user@${aws_eip.backend.public_ip}"
 }
