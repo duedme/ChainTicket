@@ -107,7 +107,9 @@ resource "aws_iam_role_policy" "ec2_dynamodb" {
           aws_dynamodb_table.sales_history.arn,
           "${aws_dynamodb_table.sales_history.arn}/index/*",
           aws_dynamodb_table.ai_conversations.arn,
-          "${aws_dynamodb_table.ai_conversations.arn}/index/*"
+          "${aws_dynamodb_table.ai_conversations.arn}/index/*",
+          aws_dynamodb_table.app_data.arn,
+          "${aws_dynamodb_table.app_data.arn}/index/*"
         ]
       }
     ]
