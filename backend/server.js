@@ -6,7 +6,11 @@ import ticketPurchaseRoutes from './routes/ticketPurchase.js';
 import * as db from './services/dynamoDBService.js';
 
 const app = express();
-app.use(cors());
+app.use(cors({
+  origin: '*',
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
+}));
 app.use(express.json());
 
 // Transform DynamoDB camelCase to snake_case for frontend compatibility

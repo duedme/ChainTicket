@@ -5,7 +5,7 @@ const DataContext = createContext();
 
 export const useData = () => useContext(DataContext);
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://44.219.206.243:3001';
+const API_URL = 'http://44.219.206.243:3001';
 
 export const DataProvider = ({ children }) => {
     const { user, isGuest } = useAuth();
