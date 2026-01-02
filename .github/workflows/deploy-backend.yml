@@ -7,11 +7,16 @@ on:
     paths:
       - 'backend/**'
   workflow_dispatch:
+    inputs:
+      run_npm_ci:
+        description: 'Run npm ci?'
+        type: boolean
+        default: false
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     
     steps:
       - name: Deploy to EC2
@@ -20,16 +25,20 @@ jobs:
           host: ${{ secrets.EC2_HOST }}
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.EC2_SSH_KEY }}
-          command_timeout: 8m
+          command_timeout: 12m
           script: |
             cd /opt/chainticket
-            echo "Pulling latest code..."
             sudo git fetch origin main
             sudo git reset --hard origin/main
-            
             cd backend
-            sudo npm ci --omit=dev
+            
+            # Solo npm ci si se solicita manualmente
+            if [ "${{ github.event.inputs.run_npm_ci }}" = "true" ]; then
+              echo "📦 Running npm ci..."
+              sudo npm ci --omit=dev
+            fi
+            
             sudo systemctl restart chainticket
             sleep 2
-            curl -s http://localhost:3001/api/health || echo "Health check pending..."
-            echo "✅ Deploy completed"
+            curl -s http://localhost:3001/api/health || echo "⚠️ Starting..."
+            echo "✅ Done"
