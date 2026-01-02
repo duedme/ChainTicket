@@ -472,3 +472,5 @@ app.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
   console.log(`📦 Using DynamoDB for data storage`);
 });
+
+// Backend test
