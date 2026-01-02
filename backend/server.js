@@ -4,6 +4,7 @@ import crypto from 'crypto';
 import aiRoutes from './routes/aiRoutes.js';
 import ticketPurchaseRoutes from './routes/ticketPurchase.js';
 import * as db from './services/dynamoDBService.js';
+import ticketPurchaseRoutes from './routes/ticketPurchase.js';
 
 const app = express();
 app.use(cors({
@@ -467,6 +468,8 @@ app.post('/api/ai/recommendations', async (req, res) => {
   });
 });
 
+app.use('/api/tickets', ticketPurchaseRoutes);
+
 // ============================================
 // SERVER
 // ============================================
@@ -476,5 +479,3 @@ app.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
   console.log(`📦 Using DynamoDB for data storage`);
 });
-
-// Backend test
