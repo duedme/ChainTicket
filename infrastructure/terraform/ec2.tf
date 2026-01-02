@@ -155,46 +155,31 @@ resource "aws_instance" "backend" {
     #!/bin/bash
     set -e
     
-    # Logs
     exec > >(tee /var/log/user-data.log) 2>&1
     echo "Starting user-data script..."
     
-    # Actualizar sistema
     dnf update -y
     
-    # Instalar Node.js 20
-    dnf install -y nodejs20 npm git
+    # Node.js 20 via NodeSource (funciona en AL2023)
+    curl -fsSL https://rpm.nodesource.com/setup_20.x | bash -
+    dnf install -y nodejs git
     
-    # Crear directorio para la app
+    echo "Node version: $(node --version)"
+    
     mkdir -p /opt/chainticket
     cd /opt/chainticket
     
-    # Clonar repositorio
     git clone https://github.com/${var.github_owner}/${var.github_repo}.git .
     
-    # Ir al backend
     cd backend
+    npm ci --omit=dev
     
-    # Instalar dependencias
-    npm ci --production
-    
-    # Crear archivo de environment
     cat > .env << 'ENVFILE'
     PORT=3001
     AWS_REGION=${var.aws_region}
-    DYNAMODB_TABLE_BUSINESS_METRICS=${aws_dynamodb_table.business_metrics.name}
-    DYNAMODB_TABLE_SALES_HISTORY=${aws_dynamodb_table.sales_history.name}
-    DYNAMODB_TABLE_AI_CONVERSATIONS=${aws_dynamodb_table.ai_conversations.name}
-    BEDROCK_MODEL_ID=amazon.titan-text-express-v1:0
-    MOVEMENT_RPC_URL=https://aptos.testnet.porto.movementlabs.xyz/v1
-    MOVEMENT_INDEXER_URL=https://indexer.testnet.porto.movementnetwork.xyz/v1/graphql
-    CONTRACT_MODULE_ADDRESS=0x0a10dde9540e854e79445a37ed6636086128cfc4d13638077e983a14a4398056
-    PRIVY_APP_ID=${var.privy_app_id}
-    PRIVY_APP_SECRET=${var.privy_app_secret}
-    PAYMENT_RECEIVER_ADDRESS=${var.payment_receiver_address}
+    NODE_ENV=production
     ENVFILE
     
-    # Crear servicio systemd
     cat > /etc/systemd/system/chainticket.service << 'SERVICE'
     [Unit]
     Description=ChainTicket Backend API
@@ -207,22 +192,19 @@ resource "aws_instance" "backend" {
     ExecStart=/usr/bin/node server.js
     Restart=on-failure
     RestartSec=10
-    StandardOutput=syslog
-    StandardError=syslog
-    SyslogIdentifier=chainticket
     Environment=NODE_ENV=production
     
     [Install]
     WantedBy=multi-user.target
     SERVICE
     
-    # Habilitar y arrancar servicio
     systemctl daemon-reload
     systemctl enable chainticket
     systemctl start chainticket
     
     echo "User-data script completed!"
-  EOF
+    EOF
+
 
   tags = {
     Name = "${var.project_name}-backend-${var.environment}"
