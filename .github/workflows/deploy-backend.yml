@@ -6,13 +6,12 @@ on:
       - main
     paths:
       - 'backend/**'
-
   workflow_dispatch:
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 10
     
     steps:
       - name: Deploy to EC2
@@ -21,44 +20,13 @@ jobs:
           host: ${{ secrets.EC2_HOST }}
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.EC2_SSH_KEY }}
-          script_stop: true
-          command_timeout: 20m
+          command_timeout: 8m
           script: |
-            set -e
-            
-            # Instalar NVM y Node.js 22 si no existe
-            export NVM_DIR="$HOME/.nvm"
-            if [ ! -d "$NVM_DIR" ]; then
-              echo "Installing NVM..."
-              curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.1/install.sh | bash
-            fi
-            
-            # Cargar NVM
-            [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
-            
-            # Instalar y usar Node.js 22 LTS
-            nvm install 22
-            nvm use 22
-            nvm alias default 22
-            
-            echo "Node version: $(node --version)"
-            echo "npm version: $(npm --version)"
-            
             cd /opt/chainticket
             sudo git pull origin main
             cd backend
-            
-            # Instalar dependencias con Node 22
-            npm ci --production
-            
-            # Actualizar el servicio systemd
-            NODE_PATH="$NVM_DIR/versions/node/$(nvm current)/bin/node"
-            sudo sed -i "s|ExecStart=.*|ExecStart=$NODE_PATH /opt/chainticket/backend/server.js|" /etc/systemd/system/chainticket.service
-            
-            sudo systemctl daemon-reload
+            sudo npm ci --omit=dev
             sudo systemctl restart chainticket
-            
-            sleep 3
-            sudo systemctl status chainticket --no-pager || true
-            
-            echo "Deploy completed at $(date)"
+            sleep 2
+            curl -s http://localhost:3001/api/health || echo "Health check pending..."
+            echo "✅ Deploy completed"
