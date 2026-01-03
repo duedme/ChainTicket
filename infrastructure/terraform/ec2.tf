@@ -153,42 +153,37 @@ resource "aws_instance" "backend" {
   vpc_security_group_ids = [aws_security_group.backend.id]
 
   user_data = <<-EOF
-    #!/bin/bash
-    set -e
-    
-    exec > >(tee /var/log/user-data.log) 2>&1
-    echo "Starting user-data script..."
-    
-    dnf update -y
-    
-    # Node.js 20 via NodeSource
-    curl -fsSL https://rpm.nodesource.com/setup_20.x | bash -
-    dnf install -y nodejs git
-    
-    echo "Node version: $(node --version)"
-    
-    mkdir -p /opt/chainticket
-    cd /opt/chainticket
-    
-    git clone https://github.com/${var.github_owner}/${var.github_repo}.git .
-    
-    cd backend
-    npm ci --omit=dev
-    
-    cat > .env << 'ENVFILE'
+#!/bin/bash
+set -e
+
+exec > >(tee /var/log/user-data.log) 2>&1
+echo "Starting user-data script..."
+
+dnf update -y
+
+# Node.js 20 via NodeSource
+curl -fsSL https://rpm.nodesource.com/setup_20.x | bash -
+dnf install -y nodejs git
+
+echo "Node version: $(node --version)"
+
+mkdir -p /opt/chainticket
+cd /opt/chainticket
+
+git clone https://github.com/${var.github_owner}/${var.github_repo}.git .
+
+cd backend
+npm ci --omit=dev
+
+cat > .env << 'ENVFILE'
 PORT=3001
-NODE_ENV=development
+NODE_ENV=production
 AWS_REGION=${var.aws_region}
 
 # Movement Network
 MOVEMENT_RPC_URL=https://aptos.testnet.porto.movementlabs.xyz/v1
 MOVEMENT_INDEXER_URL=https://indexer.testnet.porto.movementnetwork.xyz/v1/graphql
-#CONTRACT_MODULE_ADDRESS=""
-
-# Payment - CONFIGURAR MANUALMENTE DESPUÉS
-# PAYMENT_PROCESSOR_PRIVATE_KEY=
-# PAYMENT_RECEIVER_ADDRESS=
-# BASE_RPC_URL=https://mainnet.base.org
+CONTRACT_MODULE_ADDRESS=0x0a10dde9540e854e79445a37ed6636086128cfc4d13638077e983a14a4398056
 
 # DynamoDB
 DYNAMODB_TABLE_APP_DATA=${var.project_name}-app-data-${var.environment}
@@ -199,8 +194,8 @@ DYNAMODB_TABLE_AI_CONVERSATIONS=${var.project_name}-ai-conversations-${var.envir
 # Bedrock
 BEDROCK_MODEL_ID=amazon.titan-text-express-v1:0
 ENVFILE
-    
-    cat > /etc/systemd/system/chainticket.service << 'SERVICE'
+
+cat > /etc/systemd/system/chainticket.service << 'SERVICE'
 [Unit]
 Description=ChainTicket Backend API
 After=network.target
@@ -217,13 +212,13 @@ EnvironmentFile=/opt/chainticket/backend/.env
 [Install]
 WantedBy=multi-user.target
 SERVICE
-    
-    systemctl daemon-reload
-    systemctl enable chainticket
-    systemctl start chainticket
-    
-    echo "User-data script completed!"
-  EOF
+
+systemctl daemon-reload
+systemctl enable chainticket
+systemctl start chainticket
+
+echo "User-data script completed!"
+EOF
 
   tags = {
     Name = "${var.project_name}-backend-${var.environment}"
