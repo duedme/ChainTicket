@@ -19,8 +19,9 @@ const VendorMenu = () => {
     const [purchaseSuccess, setPurchaseSuccess] = useState(null);
     const [showLoginPrompt, setShowLoginPrompt] = useState(false);
 
-    const vendor = vendors.find(v => v.id === parseInt(vendorId));
-    const vendorServices = services.filter(s => s.vendorId === parseInt(vendorId));
+    // Match vendor by ID (handle both string and number IDs)
+    const vendor = vendors.find(v => String(v.id) === String(vendorId));
+    const vendorServices = services.filter(s => String(s.vendorId) === String(vendorId));
     const cartCount = cart.reduce((sum, item) => sum + item.quantity, 0);
     const vendorType = vendor?.vendor_type || vendor?.vendorType;
     const usesCart = vendor?.uses_cart || vendor?.usesCart || false;
@@ -29,7 +30,7 @@ const VendorMenu = () => {
         if (vendorType === 'supermarket' && orders.length > 0) {
             const existingQueueOrder = orders.find(o => 
                 o.isQueueOrder && 
-                o.vendorId === parseInt(vendorId) &&
+                String(o.vendorId) === String(vendorId) &&
                 o.status !== 'completed'
             );
             if (existingQueueOrder && !queueOrderId) {
