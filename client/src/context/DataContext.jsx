@@ -5,6 +5,7 @@ const DataContext = createContext();
 
 export const useData = () => useContext(DataContext);
 
+// Backend API URL (HTTP will cause mixed content warning on HTTPS Amplify)
 const API_URL = import.meta.env.VITE_API_URL || 'http://44.219.206.243:3001';
 
 export const DataProvider = ({ children }) => {
