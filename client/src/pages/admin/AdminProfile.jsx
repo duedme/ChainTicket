@@ -16,7 +16,7 @@ const AdminProfile = () => {
         businessName: user?.profile?.businessName || ''
     });
 
-    const myVendor = vendors.find(v => v.owner_id === user?.privyId);
+    const myVendor = vendors.find(v => v.owner_privy_id === user?.privyId || v.ownerPrivyId === user?.privyId);
     const [usesCart, setUsesCart] = useState(myVendor?.uses_cart || false);
 
     useEffect(() => {
