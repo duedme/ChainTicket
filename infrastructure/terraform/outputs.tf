@@ -97,13 +97,23 @@ output "amplify_instructions" {
 } */
 
 output "backend_url" {
-  description = "URL del Backend API"
+  description = "URL del Backend API (HTTP - directo a EC2)"
   value       = "http://${aws_eip.backend.public_ip}:3001"
+}
+
+output "backend_url_https" {
+  description = "URL del Backend API (HTTPS - CloudFront)"
+  value       = "https://${aws_cloudfront_distribution.backend_api.domain_name}"
 }
 
 output "backend_public_ip" {
   description = "IP pública del backend"
   value       = aws_eip.backend.public_ip
+}
+
+output "cloudfront_distribution_id" {
+  description = "CloudFront Distribution ID"
+  value       = aws_cloudfront_distribution.backend_api.id
 }
 
 output "ssh_command" {
