@@ -41,41 +41,54 @@ REGLAS:
 /**
  * Construir el contexto del prompt basado en datos del negocio
  */
-function buildContextPrompt(businessContext) {
-  const { metrics, weeklyHistory, recentConversations } = businessContext;
+function buildContextPrompt(businessContext, additionalInfo = {}) {
+  const { metrics, weeklyHistory } = businessContext;
+  
+  let context = '\n### BUSINESS DATA:\n';
+  const hasHistoricalData = metrics && Object.keys(metrics).length > 0;
 
-  let context = '\n### DATOS DEL NEGOCIO:\n';
-
-  if (metrics && Object.keys(metrics).length > 0) {
+  if (hasHistoricalData) {
     context += `
-**Información General:**
-- Nombre: ${metrics.businessName || 'No especificado'}
-- Tipo: ${metrics.businessType || 'No especificado'}
-- Capacidad máxima: ${metrics.maxCapacity || 'No especificada'}
+**General Info:**
+- Name: ${metrics.businessName || 'Not specified'}
+- Type: ${metrics.businessType || 'Not specified'}
+- Max capacity: ${metrics.maxCapacity || 'Not specified'}
 
-**Métricas Actuales:**
-- Promedio tickets/viernes: ${metrics.avgTicketsPerFriday || 'N/A'}
-- Promedio tickets/sábado: ${metrics.avgTicketsPerSaturday || 'N/A'}
-- Hora pico: ${metrics.peakHour || 'N/A'}
-- Tasa de sold-out: ${metrics.selloutRate ? (metrics.selloutRate * 100).toFixed(1) + '%' : 'N/A'}
-- Tasa retorno clientes: ${metrics.customerReturnRate || 'N/A'}%
+**Historical Metrics:**
+- Avg tickets/Friday: ${metrics.avgTicketsPerFriday || 'N/A'}
+- Avg tickets/Saturday: ${metrics.avgTicketsPerSaturday || 'N/A'}
+- Peak hour: ${metrics.peakHour || 'N/A'}
+`;
+  } else {
+    const bizType = additionalInfo.businessType || 'general';
+    context += `
+**New Business (no historical data)**
+- Type: ${bizType}
+- Location: ${additionalInfo.location || 'Not specified'}
+- Capacity: ${additionalInfo.maxCapacity || 'Not specified'}
+- Target day: ${additionalInfo.targetDay || 'Not specified'}
+- Hours: ${additionalInfo.schedule || 'Not specified'}
+
+**Industry benchmarks by business type:**
+- Bar/Lounge (100-150 cap): 60-80 tickets Friday night
+- Concert/Event: 70-80% capacity as initial target
+- Restaurant: 70-85% capacity for reservations
+- Spa/Beauty: 80-90% appointment slots
+- Supermarket queue: 15-20 tickets per checkout line per hour
+- Club/Nightlife: 80% Fri, 100%+ Saturday
+
+**General guidelines:**
+- Fri/Sat typically +40-60% vs weekdays
+- Start conservative for new businesses
+- High-traffic areas (downtown): +20-30%
 `;
   }
 
   if (weeklyHistory && weeklyHistory.length > 0) {
-    context += '\n**Historial Reciente (últimas semanas):**\n';
-    weeklyHistory.forEach(week => {
-      context += `- ${week.weekId}: ${week.ticketsSold || 0} vendidos, $${week.revenue || 0} ingresos, ${week.checkIns || 0} check-ins\n`;
+    context += '\n**Recent History:**\n';
+    weeklyHistory.slice(0, 4).forEach(week => {
+      context += `- ${week.weekId}: ${week.ticketsSold || 0} sold\n`;
     });
-  }
-
-  if (recentConversations && recentConversations.length > 0) {
-    context += '\n**Recomendaciones anteriores:**\n';
-    const lastConv = recentConversations[0];
-    if (lastConv.recommendation) {
-      context += `- Última recomendación: "${lastConv.recommendation}"\n`;
-      context += `- Feedback: ${lastConv.feedback || 'Sin feedback'}\n`;
-    }
   }
 
   return context;
@@ -95,12 +108,12 @@ export async function generateTicketRecommendation(businessId, question) {
     const contextPrompt = buildContextPrompt(businessContext);
 
     // Construir el mensaje
-    const messages = [
-      {
-        role: 'user',
-        content: `${contextPrompt}\n\n### PREGUNTA DEL ADMINISTRADOR:\n${question}\n\nPor favor, proporciona una recomendación específica y justificada.`
-      }
-    ];
+	const messages = [
+	  {
+	    role: 'user',
+	    content: `${contextPrompt}\n\n### ADMIN QUESTION:\n${question}\n\nProvide a specific recommendation with concrete numbers and brief justification.`
+	  }
+	];
 
     // Invocar Bedrock
     const response = await invokeModel(messages);
