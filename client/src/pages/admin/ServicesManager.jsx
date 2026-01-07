@@ -7,7 +7,7 @@ import { Plus, Edit2, Check, X, Clock, Package, Trash2, Power, Calendar, AlertTr
 const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
 const ServicesManager = () => {
-    const { services, updateService, addService, deleteService, toggleServiceActive } = useData();
+    const { myServices, updateService, addService, deleteService, toggleServiceActive } = useData();
     const { isGuest, connectWallet } = useAuth();
     const [editingId, setEditingId] = useState(null);
     const [newServiceMode, setNewServiceMode] = useState(false);
@@ -191,7 +191,7 @@ const ServicesManager = () => {
 
             <div className="grid gap-6">
                 <AnimatePresence>
-                    {services.map(service => (
+                    {myServices.map(service => (
                         <motion.div
                             key={service.id}
                             layout

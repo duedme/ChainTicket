@@ -12,6 +12,7 @@ export const DataProvider = ({ children }) => {
     const { user, isGuest } = useAuth();
     const [vendors, setVendors] = useState([]);
     const [services, setServices] = useState([]);
+    const [myServices, setMyServices] = useState([]);
     const [orders, setOrders] = useState([]);
     const [cart, setCart] = useState([]);
     const [tickets, setTickets] = useState([]);
@@ -75,7 +76,7 @@ export const DataProvider = ({ children }) => {
                         days: s.schedule_days || []
                     }
                 }));
-                setServices(formattedServices);
+                setMyServices(formattedServices);
             }
         } catch (error) {
             console.error('Error fetching my services:', error);
@@ -510,6 +511,7 @@ export const DataProvider = ({ children }) => {
         <DataContext.Provider value={{
             vendors,
             services,
+            myServices,
             orders,
             cart,
             tickets,
