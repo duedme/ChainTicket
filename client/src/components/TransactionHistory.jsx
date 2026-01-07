@@ -12,75 +12,18 @@ import {
     RefreshCw
 } from 'lucide-react';
 
+const API_URL = import.meta.env.VITE_API_URL || 'https://d4y2c4layjh2.cloudfront.net';
+
 const TransactionHistory = ({ limit = 10 }) => {
     const { authenticated } = usePrivy();
     const { wallets } = useWallets();
     const [transactions, setTransactions] = useState([]);
     const [loading, setLoading] = useState(false);
+    const [error, setError] = useState(null);
     const [filter, setFilter] = useState('all'); // 'all', 'sent', 'received'
 
     const wallet = wallets && wallets.length > 0 ? wallets[0] : null;
     const address = wallet?.address;
-
-    // Mock transaction data for demonstration
-    // In production, this would fetch from Movement blockchain
-    const mockTransactions = [
-        {
-            id: '1',
-            hash: '0x1234...5678',
-            type: 'sent',
-            amount: '0.5',
-            to: '0xabcd...ef01',
-            from: address,
-            status: 'confirmed',
-            timestamp: Date.now() - 3600000,
-            description: 'Ticket Purchase - Event #123'
-        },
-        {
-            id: '2',
-            hash: '0x2345...6789',
-            type: 'received',
-            amount: '1.2',
-            to: address,
-            from: '0xbcde...f012',
-            status: 'confirmed',
-            timestamp: Date.now() - 7200000,
-            description: 'Refund - Event Cancelled'
-        },
-        {
-            id: '3',
-            hash: '0x3456...7890',
-            type: 'sent',
-            amount: '0.3',
-            to: '0xcdef...0123',
-            from: address,
-            status: 'pending',
-            timestamp: Date.now() - 300000,
-            description: 'Service Purchase'
-        },
-        {
-            id: '4',
-            hash: '0x4567...8901',
-            type: 'sent',
-            amount: '0.8',
-            to: '0xdef0...1234',
-            from: address,
-            status: 'confirmed',
-            timestamp: Date.now() - 14400000,
-            description: 'Ticket Transfer'
-        },
-        {
-            id: '5',
-            hash: '0x5678...9012',
-            type: 'received',
-            amount: '2.0',
-            to: address,
-            from: '0xef01...2345',
-            status: 'failed',
-            timestamp: Date.now() - 21600000,
-            description: 'Failed Transfer'
-        }
-    ];
 
     useEffect(() => {
         if (authenticated && address) {
@@ -89,16 +32,36 @@ const TransactionHistory = ({ limit = 10 }) => {
     }, [authenticated, address, filter]);
 
     const fetchTransactions = async () => {
+        if (!address) return;
+        
         setLoading(true);
-        // Simulate API call
-        setTimeout(() => {
-            let filteredTxs = mockTransactions;
-            if (filter !== 'all') {
-                filteredTxs = mockTransactions.filter(tx => tx.type === filter);
+        setError(null);
+        
+        try {
+            const typeParam = filter !== 'all' ? `&type=${filter}` : '';
+            const response = await fetch(
+                `${API_URL}/api/transactions/${address}?limit=${limit}${typeParam}`
+            );
+            
+            if (!response.ok) {
+                throw new Error('Failed to fetch transactions');
             }
-            setTransactions(filteredTxs.slice(0, limit));
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                setTransactions(data.transactions || []);
+            } else {
+                throw new Error(data.error || 'Unknown error');
+            }
+        } catch (err) {
+            console.error('Error fetching transactions:', err);
+            setError(err.message);
+            // Keep empty array if error
+            setTransactions([]);
+        } finally {
             setLoading(false);
-        }, 1000);
+        }
     };
 
     const getStatusIcon = (status) => {

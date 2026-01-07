@@ -3,6 +3,7 @@ import cors from 'cors';
 import crypto from 'crypto';
 import aiRoutes from './routes/aiRoutes.js';
 import ticketPurchaseRoutes from './routes/ticketPurchase.js';
+import transactionRoutes from './routes/transactionRoutes.js';
 import * as db from './services/dynamoDBService.js';
 
 const app = express();
@@ -518,6 +519,11 @@ app.post('/api/seed', async (req, res) => {
 });
 
 // ============================================
+// TRANSACTION ROUTES
+// ============================================
+
+app.use('/api/transactions', transactionRoutes);
+
 // AI ROUTES
 // ============================================
 

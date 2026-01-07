@@ -893,6 +893,135 @@ export async function getSalesMetricsForAI(businessId, days = 30) {
   };
 }
 
+// ============================================
+// TRANSACTIONS (Privy Wallet)
+// ============================================
+
+/**
+ * Save a transaction record for a user's Privy wallet
+ */
+export async function saveTransaction(transactionData) {
+  const { 
+    walletAddress, 
+    txHash, 
+    type, // 'sent' or 'received'
+    amount, 
+    to, 
+    from, 
+    status, // 'pending', 'confirmed', 'failed'
+    description,
+    chainId = '250' // Movement testnet
+  } = transactionData;
+
+  const timestamp = Date.now();
+  const now = new Date().toISOString();
+
+  const item = {
+    pk: `WALLET#${walletAddress}`,
+    sk: `TX#${timestamp}#${txHash}`,
+    gsi1pk: 'TRANSACTIONS',
+    gsi1sk: `TX#${timestamp}`,
+    gsi2pk: `STATUS#${status}`,
+    gsi2sk: `TX#${timestamp}`,
+    
+    walletAddress,
+    txHash,
+    type,
+    amount,
+    to,
+    from,
+    status,
+    description: description || null,
+    chainId,
+    timestamp,
+    createdAt: now,
+    updatedAt: now,
+  };
+
+  const command = new PutCommand({ TableName: TABLES.APP_DATA, Item: item });
+  await docClient.send(command);
+  return item;
+}
+
+/**
+ * Get transactions for a wallet address
+ */
+export async function getTransactionsByWallet(walletAddress, limit = 50) {
+  const command = new QueryCommand({
+    TableName: TABLES.APP_DATA,
+    KeyConditionExpression: 'pk = :pk AND begins_with(sk, :skPrefix)',
+    ExpressionAttributeValues: {
+      ':pk': `WALLET#${walletAddress}`,
+      ':skPrefix': 'TX#',
+    },
+    ScanIndexForward: false, // Most recent first
+    Limit: limit,
+  });
+
+  const response = await docClient.send(command);
+  return response.Items || [];
+}
+
+/**
+ * Update transaction status
+ */
+export async function updateTransactionStatus(walletAddress, txHash, status) {
+  const transactions = await getTransactionsByWallet(walletAddress);
+  const transaction = transactions.find(tx => tx.txHash === txHash);
+  
+  if (!transaction) {
+    throw new Error('Transaction not found');
+  }
+
+  const updatedItem = {
+    ...transaction,
+    status,
+    updatedAt: new Date().toISOString(),
+  };
+
+  const command = new PutCommand({ TableName: TABLES.APP_DATA, Item: updatedItem });
+  await docClient.send(command);
+  return updatedItem;
+}
+
+/**
+ * Get transaction by hash
+ */
+export async function getTransactionByHash(txHash) {
+  const command = new QueryCommand({
+    TableName: TABLES.APP_DATA,
+    IndexName: 'GSI1',
+    KeyConditionExpression: 'gsi1pk = :gsi1pk',
+    FilterExpression: 'txHash = :txHash',
+    ExpressionAttributeValues: {
+      ':gsi1pk': 'TRANSACTIONS',
+      ':txHash': txHash,
+    },
+    Limit: 1,
+  });
+
+  const response = await docClient.send(command);
+  return response.Items?.[0] || null;
+}
+
+/**
+ * Get transactions by type (sent/received)
+ */
+export async function getTransactionsByType(walletAddress, type, limit = 50) {
+  const allTransactions = await getTransactionsByWallet(walletAddress, 100);
+  return allTransactions
+    .filter(tx => tx.type === type)
+    .slice(0, limit);
+}
+
+/**
+ * Get pending transactions for a wallet
+ */
+export async function getPendingTransactions(walletAddress) {
+  const allTransactions = await getTransactionsByWallet(walletAddress, 100);
+  return allTransactions.filter(tx => tx.status === 'pending');
+}
+
 export default {
   // Users
   getUserByPrivyId, createOrUpdateUser, updateUser,
@@ -909,7 +1038,9 @@ export default {
   // Business Metrics
   getBusinessMetrics, saveBusinessMetrics, getWeeklyHistory, saveWeeklyData,
   // Sales
-  recordSale, getSalesByDateRange, saveDailyAggregate,
+  recordSale, getSalesByDateRange, saveDailyAggregate, getSalesMetricsForAI,
   // AI
   saveAIConversation, getRecentConversations, getBusinessContextForAI,
+  // Transactions
+  saveTransaction, getTransactionsByWallet, updateTransactionStatus, getTransactionByHash, getTransactionsByType, getPendingTransactions,
 };
