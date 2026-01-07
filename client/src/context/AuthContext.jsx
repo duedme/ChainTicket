@@ -253,7 +253,15 @@ export const AuthProvider = ({ children }) => {
 
     const updateUserProfile = async (profileData) => {
         const privyId = user?.privyId;
-        if (!privyId) return false;
+        if (!privyId) {
+            console.error('❌ Cannot update profile: No privyId');
+            return false;
+        }
+
+        console.log('📝 Updating user profile:', {
+            privyId,
+            profileData
+        });
 
         try {
             const response = await fetch(`${API_URL}/api/users/${privyId}`, {
@@ -267,8 +275,10 @@ export const AuthProvider = ({ children }) => {
             });
 
             const data = await response.json();
+            console.log('📦 Update profile response:', data);
             
             if (data.success) {
+                console.log('✅ Profile updated successfully');
                 setUser(prev => ({
                     ...prev,
                     profile: { ...prev?.profile, ...profileData },
@@ -276,10 +286,12 @@ export const AuthProvider = ({ children }) => {
                     profileComplete: profileData.fullName ? true : prev?.profileComplete
                 }));
                 return true;
+            } else {
+                console.error('❌ Profile update failed:', data);
             }
             return false;
         } catch (error) {
-            console.error('Error updating profile:', error);
+            console.error('❌ Error updating profile:', error);
             return false;
         }
     };
