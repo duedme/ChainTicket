@@ -54,10 +54,15 @@ export const DataProvider = ({ children }) => {
 
     // Fetch services owned by the current user (for admin)
     const fetchMyServices = useCallback(async () => {
-        if (!user?.privyId || isGuest) return;
+        if (!user?.privyId || isGuest) {
+            console.log('⚠️ fetchMyServices: User not available', { privyId: user?.privyId, isGuest });
+            return;
+        }
         try {
+            console.log('🔄 Fetching my services for user:', user.privyId);
             const response = await fetch(`${API_URL}/api/services/owner/${user.privyId}`);
             const data = await response.json();
+            console.log('📦 My services response:', data);
             if (data.services) {
                 const formattedServices = data.services.map(s => ({
                     id: s.id,
@@ -76,10 +81,11 @@ export const DataProvider = ({ children }) => {
                         days: s.schedule_days || []
                     }
                 }));
+                console.log('✅ Setting myServices:', formattedServices.length, 'services');
                 setMyServices(formattedServices);
             }
         } catch (error) {
-            console.error('Error fetching my services:', error);
+            console.error('❌ Error fetching my services:', error);
         }
     }, [user?.privyId, isGuest]);
 
@@ -222,7 +228,7 @@ export const DataProvider = ({ children }) => {
             setLoading(false);
         };
         loadData();
-    }, [user?.privyId, user?.role, isGuest, fetchVendors]);
+    }, [user?.privyId, user?.role, isGuest, fetchVendors, fetchServices, fetchMyServices, fetchVendorOrders, fetchMyOrders, fetchMyTickets, fetchQueueInfo]);
 
     // Service CRUD operations
     const addService = async (newService) => {
