@@ -189,6 +189,9 @@ MOVEMENT_RPC_URL=https://testnet.movementnetwork.xyz/v1
 MOVEMENT_INDEXER_URL=https://hasura.testnet.movementnetwork.xyz/v1/graphql
 CONTRACT_MODULE_ADDRESS=0x2339acd68a5b699c8bfefed62febcf497959ca55527227e980c56031b3bfced9
 
+# Base Sepolia
+BASE_RPC_URL=https://sepolia.base.org
+
 # DynamoDB
 DYNAMODB_TABLE_APP_DATA=${var.project_name}-app-data-${var.environment}
 DYNAMODB_TABLE_BUSINESS_METRICS=${var.project_name}-business-metrics-${var.environment}
