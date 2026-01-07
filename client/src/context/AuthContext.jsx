@@ -278,6 +278,37 @@ export const AuthProvider = ({ children }) => {
         }
     };
 
+    const fixUserType = async () => {
+        const privyId = user?.privyId;
+        if (!privyId) return false;
+
+        try {
+            console.log('🔧 Fixing user type to vendor...');
+            const response = await fetch(`${API_URL}/api/users/${privyId}`, {
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    userType: 'vendor'
+                }),
+            });
+
+            const data = await response.json();
+            
+            if (data.success) {
+                console.log('✅ User type fixed successfully!');
+                // Reload the page to fetch updated user data
+                window.location.reload();
+                return true;
+            }
+            return false;
+        } catch (error) {
+            console.error('Error fixing user type:', error);
+            return false;
+        }
+    };
+
     const logout = async () => {
         if (authenticated) {
             await privyLogout();
@@ -305,6 +336,7 @@ export const AuthProvider = ({ children }) => {
             needsRegistration,
             completeRegistration,
             updateUserProfile,
+            fixUserType,
             enterAsGuest,
             updateGuestData,
             exitGuestMode,

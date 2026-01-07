@@ -6,7 +6,7 @@ import { User, Mail, Phone, MapPin, Save, Edit2, Building, ShoppingCart, Ticket 
 import BusinessCategorySelector from '../../components/BusinessCategorySelector';
 
 const AdminProfile = () => {
-    const { user, updateUserProfile } = useAuth();
+    const { user, updateUserProfile, fixUserType } = useAuth();
     const { vendors, updateVendorSettings } = useData();
     const [isEditing, setIsEditing] = useState(false);
     const [formData, setFormData] = useState({
@@ -41,6 +41,22 @@ const AdminProfile = () => {
 
     return (
         <div className="max-w-2xl mx-auto pb-20">
+            {user?.role === 'client' && (
+                <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-4 mb-6">
+                    <h3 className="text-red-400 font-bold mb-2">⚠️ Account Type Issue Detected</h3>
+                    <p className="text-sm text-gray-300 mb-3">
+                        Your account is incorrectly set as 'client' but you're accessing the admin dashboard. 
+                        Click below to fix your account type to 'vendor/admin'.
+                    </p>
+                    <button
+                        onClick={fixUserType}
+                        className="px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded text-sm font-bold transition-colors"
+                    >
+                        Fix Account Type Now
+                    </button>
+                </div>
+            )}
+            
             <div className="flex items-center justify-between mb-12 border-b border-[#333] pb-6">
                 <div>
                     <h2 className="text-4xl font-bold font-serif tracking-wide text-gradient-gold">My Profile</h2>
