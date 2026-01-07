@@ -2,16 +2,19 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useData } from '../../context/DataContext';
 import { motion } from 'framer-motion';
-import { User, Mail, Phone, MapPin, Save, Edit2, Building, ShoppingCart, Ticket } from 'lucide-react';
+import { User, Mail, Phone, MapPin, Save, Edit2, Building, ShoppingCart, Ticket, Wallet, Copy, Check, ExternalLink, Shield } from 'lucide-react';
 import BusinessCategorySelector from '../../components/BusinessCategorySelector';
 import TransactionFeedback from '../../components/TransactionFeedback';
 import { useTransactionWithFeedback } from '../../hooks/useTransactionWithFeedback';
+import { useWallets } from '@privy-io/react-auth';
 
 const AdminProfile = () => {
     const { user, updateUserProfile, fixUserType } = useAuth();
     const { vendors, updateVendorSettings } = useData();
     const { txState, executeTransaction, closeFeedback } = useTransactionWithFeedback();
+    const { wallets } = useWallets();
     const [isEditing, setIsEditing] = useState(false);
+    const [copied, setCopied] = useState(false);
     const [formData, setFormData] = useState({
         fullName: user?.profile?.fullName || '',
         email: user?.profile?.email || '',
@@ -21,6 +24,8 @@ const AdminProfile = () => {
         businessCategory: user?.profile?.businessCategory || null
     });
 
+    const wallet = wallets && wallets.length > 0 ? wallets[0] : null;
+    const walletAddress = wallet?.address;
     const myVendor = vendors.find(v => v.owner_privy_id === user?.privyId || v.ownerPrivyId === user?.privyId);
     const [usesCart, setUsesCart] = useState(myVendor?.uses_cart || false);
 
@@ -48,6 +53,14 @@ const AdminProfile = () => {
         setUsesCart(value);
         if (myVendor) {
             await updateVendorSettings(myVendor.id, { uses_cart: value });
+        }
+    };
+
+    const copyAddress = () => {
+        if (walletAddress) {
+            navigator.clipboard.writeText(walletAddress);
+            setCopied(true);
+            setTimeout(() => setCopied(false), 2000);
         }
     };
 
@@ -253,6 +266,111 @@ const AdminProfile = () => {
                                     <p className="text-xs text-gray-500 mt-1">Multiple services per order</p>
                                     <p className="text-[10px] text-gray-600 mt-2">Best for: Spas, Menus, Packages</p>
                                 </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {/* Wallet Configuration Section */}
+                {!user?.isGuest && wallet && (
+                    <div className="bg-[#111] border border-[#333] p-6 space-y-6 mt-6">
+                        <div className="flex items-center justify-between mb-4">
+                            <div>
+                                <h3 className="text-lg font-bold text-white uppercase tracking-widest flex items-center gap-2">
+                                    <Wallet className="w-5 h-5 text-[#FFD700]" />
+                                    Privy Wallet
+                                </h3>
+                                <p className="text-xs text-gray-400 mt-1">
+                                    Your embedded wallet configuration
+                                </p>
+                            </div>
+                            <div className="flex items-center gap-2 px-3 py-1 bg-[#FFD700]/10 border border-[#FFD700]/30 rounded">
+                                <Shield className="w-3 h-3 text-[#FFD700]" />
+                                <span className="text-[#FFD700] text-[10px] uppercase tracking-wider font-semibold">Secured</span>
+                            </div>
+                        </div>
+
+                        {/* Wallet Address */}
+                        <div>
+                            <label className="text-[10px] text-gray-500 uppercase tracking-widest mb-2 block">
+                                Wallet Address
+                            </label>
+                            <div className="flex items-center gap-2 bg-black/50 border border-[#333] p-4 rounded">
+                                <Wallet className="w-5 h-5 text-[#FFD700] flex-shrink-0" />
+                                <span className="text-white font-mono text-sm flex-1 break-all">
+                                    {walletAddress}
+                                </span>
+                                <button
+                                    onClick={copyAddress}
+                                    className="p-2 hover:bg-[#FFD700]/10 rounded transition-colors flex-shrink-0"
+                                    title="Copy address"
+                                >
+                                    {copied ? (
+                                        <Check className="w-4 h-4 text-green-400" />
+                                    ) : (
+                                        <Copy className="w-4 h-4 text-gray-400" />
+                                    )}
+                                </button>
+                                <a
+                                    href={`https://explorer.movementnetwork.xyz/account/${walletAddress}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="p-2 hover:bg-[#FFD700]/10 rounded transition-colors flex-shrink-0"
+                                    title="View on explorer"
+                                >
+                                    <ExternalLink className="w-4 h-4 text-gray-400" />
+                                </a>
+                            </div>
+                        </div>
+
+                        {/* Wallet Features */}
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div className="p-4 bg-black/30 border border-[#333] rounded">
+                                <div className="flex items-center gap-2 mb-2">
+                                    <Shield className="w-4 h-4 text-green-400" />
+                                    <span className="text-xs font-bold text-white uppercase tracking-wider">Auto-Managed</span>
+                                </div>
+                                <p className="text-[10px] text-gray-500">
+                                    Privy manages your keys securely
+                                </p>
+                            </div>
+
+                            <div className="p-4 bg-black/30 border border-[#333] rounded">
+                                <div className="flex items-center gap-2 mb-2">
+                                    <Wallet className="w-4 h-4 text-blue-400" />
+                                    <span className="text-xs font-bold text-white uppercase tracking-wider">Embedded</span>
+                                </div>
+                                <p className="text-[10px] text-gray-500">
+                                    No browser extension needed
+                                </p>
+                            </div>
+
+                            <div className="p-4 bg-black/30 border border-[#333] rounded">
+                                <div className="flex items-center gap-2 mb-2">
+                                    <Check className="w-4 h-4 text-[#FFD700]" />
+                                    <span className="text-xs font-bold text-white uppercase tracking-wider">No Recovery</span>
+                                </div>
+                                <p className="text-[10px] text-gray-500">
+                                    No seed phrases to remember
+                                </p>
+                            </div>
+                        </div>
+
+                        {/* Info Box */}
+                        <div className="p-4 bg-[#FFD700]/5 border border-[#FFD700]/20 rounded">
+                            <div className="flex items-start gap-3">
+                                <div className="w-6 h-6 rounded-full bg-[#FFD700]/20 flex items-center justify-center flex-shrink-0">
+                                    <span className="text-[#FFD700] text-xs font-bold">i</span>
+                                </div>
+                                <div>
+                                    <p className="text-[#FFD700] text-xs font-semibold mb-1">
+                                        About Privy Embedded Wallets
+                                    </p>
+                                    <p className="text-gray-400 text-[10px] leading-relaxed">
+                                        Your wallet is automatically created and managed by Privy. You can use it across any device by simply logging in. 
+                                        No need to worry about private keys, seed phrases, or wallet extensions.
+                                    </p>
+                                </div>
                             </div>
                         </div>
                     </div>
