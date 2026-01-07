@@ -4,7 +4,8 @@ export function useX402Payment() {
   const { user, signMessage } = usePrivy();
   
   const purchaseTicket = async (eventAddress) => {
-    const API_URL = import.meta.env.VITE_API_URL;
+    // Backend API URL - Using CloudFront HTTPS to avoid mixed content issues
+    const API_URL = import.meta.env.VITE_API_URL || 'https://d4y2c4layjh2.cloudfront.net';
     
     // Primera llamada - obtendrá 402 si requiere pago
     let response = await fetch(`${API_URL}/api/tickets/purchase/${eventAddress}`, {

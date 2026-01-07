@@ -5,7 +5,8 @@ const AuthContext = createContext();
 
 export const useAuth = () => useContext(AuthContext);
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+// Backend API URL - Using CloudFront HTTPS to avoid mixed content issues
+const API_URL = import.meta.env.VITE_API_URL || 'https://d4y2c4layjh2.cloudfront.net';
 const GUEST_EXPIRY_HOURS = 24;
 
 const generateGuestId = () => {

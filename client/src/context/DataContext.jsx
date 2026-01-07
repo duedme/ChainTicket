@@ -5,8 +5,8 @@ const DataContext = createContext();
 
 export const useData = () => useContext(DataContext);
 
-// Backend API URL (HTTP will cause mixed content warning on HTTPS Amplify)
-const API_URL = import.meta.env.VITE_API_URL || 'http://44.219.206.243:3001';
+// Backend API URL - Using CloudFront HTTPS to avoid mixed content issues
+const API_URL = import.meta.env.VITE_API_URL || 'https://d4y2c4layjh2.cloudfront.net';
 
 export const DataProvider = ({ children }) => {
     const { user, isGuest } = useAuth();
