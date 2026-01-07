@@ -34,9 +34,14 @@ const AdminProfile = () => {
         }
     };
 
-    const handleSave = () => {
-        updateUserProfile(formData);
-        setIsEditing(false);
+    const handleSave = async () => {
+        const success = await updateUserProfile(formData);
+        if (success) {
+            alert('✅ Profile saved successfully!');
+            setIsEditing(false);
+        } else {
+            alert('❌ Failed to save profile. Check console for errors.');
+        }
     };
 
     return (
