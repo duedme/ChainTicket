@@ -2,6 +2,7 @@ import { useData } from '../../context/DataContext';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Clock, CheckCircle, User, Activity } from 'lucide-react';
 import WalletWidget from '../../components/WalletWidget';
+import TransactionHistory from '../../components/TransactionHistory';
 
 const AdminDashboard = () => {
     const { orders, services, updateOrderStatus } = useData();
@@ -29,9 +30,10 @@ const AdminDashboard = () => {
                 </div>
             </div>
 
-            {/* Wallet Widget */}
-            <div className="mb-12">
+            {/* Wallet Widget and Transaction History */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-12">
                 <WalletWidget />
+                <TransactionHistory limit={5} />
             </div>
 
             {activeOrders.length === 0 ? (
