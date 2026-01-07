@@ -6,20 +6,20 @@ import { wrapFetchWithPayment } from '@coinbase/x402/client';
 const MOVEMENT_CONFIG = {
   // Testnet (para desarrollo)
   testnet: {
-    rpcUrl: 'https://aptos.testnet.porto.movementlabs.xyz/v1',
-    indexerUrl: 'https://indexer.testnet.porto.movementnetwork.xyz/v1/graphql',
-    chainId: 177,
+    rpcUrl: 'https://testnet.movementnetwork.xyz/v1',
+    indexerUrl: 'https://hasura.testnet.movementnetwork.xyz/v1/graphql',
+    chainId: 250,
   },
   // Mainnet (para producción)
-  mainnet: {
+  /* mainnet: {
     rpcUrl: 'https://mainnet.movementnetwork.xyz/v1',
     indexerUrl: 'https://indexer.mainnet.movementnetwork.xyz/v1/graphql',
     chainId: 126,
-  }
+  } */
 };
 
 // Dirección de tu contrato deployado
-const CONTRACT_ADDRESS = '0x0a10dde9540e854e79445a37ed6636086128cfc4d13638077e983a14a4398056';
+const CONTRACT_ADDRESS = '0x2339acd68a5b699c8bfefed62febcf497959ca55527227e980c56031b3bfced9'
 
 // Usar testnet para desarrollo
 const NETWORK = 'testnet';
