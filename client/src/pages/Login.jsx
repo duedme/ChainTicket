@@ -10,38 +10,36 @@ const Login = () => {
   const { connectWallet, loading, authenticated, user, ready, needsRegistration, enterAsGuest } = useAuth();
   const navigate = useNavigate();
   const [showGuestOptions, setShowGuestOptions] = useState(false);
-  
-  // Flag para saber si el usuario acaba de hacer una acción
-  const userInitiatedAction = useRef(false);
 
   useEffect(() => {
-    // Solo navegar si el usuario hizo una acción explícita (login o guest)
-    if (!ready || !userInitiatedAction.current) return;
+    if (!ready) return;
     
-    if (user) {
-      if (user.isGuest) {
-        // Guest: navegar según el rol elegido
-        if (user.role === 'admin') navigate('/admin');
-        else navigate('/client');
-      } else if (authenticated) {
-        if (needsRegistration) {
-          navigate('/register');
-        } else {
-          // Usuario autenticado: navegar según rol de BD
-          if (user.role === 'admin') navigate('/admin');
-          else navigate('/client');
-        }
+    // Si el usuario ya está logueado, redirigir
+    if (user && !user.isGuest && authenticated) {
+      if (needsRegistration) {
+        navigate('/register');
+      } else if (user.role === 'admin') {
+        navigate('/admin');
+      } else {
+        navigate('/client');
+      }
+    }
+    
+    // Si es guest, redirigir según rol
+    if (user && user.isGuest) {
+      if (user.role === 'admin') {
+        navigate('/admin');
+      } else {
+        navigate('/client');
       }
     }
   }, [ready, authenticated, user, navigate, needsRegistration]);
 
   const handleWallet = async () => {
-    userInitiatedAction.current = true;
     await connectWallet();
   };
 
   const handleGuestEntry = (guestType) => {
-    userInitiatedAction.current = true;
     enterAsGuest(guestType);
   };
 
@@ -49,6 +47,15 @@ const Login = () => {
     return (
       <div className="min-h-screen flex items-center justify-center bg-black">
         <div className="text-[#FFD700] text-xl animate-pulse">Loading...</div>
+      </div>
+    );
+  }
+
+  // ✅ FIX: Si ya está autenticado, mostrar loading mientras redirige
+  if (authenticated && user) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-black">
+        <div className="text-[#FFD700] text-xl animate-pulse">Redirecting...</div>
       </div>
     );
   }
