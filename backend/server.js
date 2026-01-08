@@ -231,19 +231,37 @@ app.get('/api/orders/vendor/:privyId', async (req, res) => {
 
 app.post('/api/orders', async (req, res) => {
   try {
-    const { userPrivyId, vendorId, items } = req.body;
-    
+    const { 
+      userPrivyId, 
+      vendorId, 
+      items,
+      // NUEVOS CAMPOS x402
+      paymentTxHash,
+      paymentAmount,
+      paymentMethod,
+      buyerAddress
+    } = req.body;
+
     // Calculate queue position
     const pending = await db.getPendingOrdersCount(vendorId);
     const queuePosition = pending.count + 1;
     const maxItemTime = Math.max(...items.map(item => (item.avgTime || 30) * item.quantity));
     const estimatedWait = pending.totalWait + maxItemTime;
-    const totalAmount = items.reduce((sum, item) => sum + (item.price || 0) * item.quantity, 0);
-    
+    const totalAmount = items.reduce((sum, item) => sum + ((item.price || 0) * item.quantity), 0);
+
     const order = await db.createOrder({
-      userPrivyId, vendorId, items, totalAmount, queuePosition, estimatedWait
+      userPrivyId,
+      vendorId,
+      items,
+      totalAmount: paymentAmount || totalAmount,
+      queuePosition,
+      estimatedWait,
+      // NUEVOS CAMPOS
+      paymentTxHash: paymentTxHash || null,
+      paymentMethod: paymentMethod || 'free',
+      buyerAddress: buyerAddress || null
     });
-    
+
     // Create tickets for each item
     const createdTickets = [];
     for (const item of items) {
@@ -258,15 +276,44 @@ app.post('/api/orders', async (req, res) => {
           serviceId: item.serviceId,
           serviceName: item.serviceName,
           vendorId,
-          qrHash
+          qrHash,
+          // NUEVO: guardar info de pago en ticket
+          paymentTxHash: paymentTxHash || null
         });
         createdTickets.push(ticket);
       }
       // Update sold count
       await db.incrementServiceSold(item.serviceId, item.quantity);
     }
-    
-    res.json({ success: true, order: toSnakeCase({ ...order, items }), tickets: toSnakeCase(createdTickets), queuePosition, estimatedWait });
+
+    // ✅ NUEVO: Registrar venta en sales-history para la IA
+    if (paymentTxHash || totalAmount > 0) {
+      try {
+        await db.recordSale(vendorId || 'default', {
+          orderId: order.id,
+          orderNumber: order.orderNumber,
+          amount: paymentAmount || totalAmount,
+          itemCount: items.length,
+          paymentMethod: paymentMethod || 'free',
+          paymentTxHash: paymentTxHash || null,
+          buyerAddress: buyerAddress || null,
+          userPrivyId,
+          items: items.map(i => ({ name: i.serviceName, qty: i.quantity, price: i.price }))
+        });
+        console.log('✅ Venta registrada en DynamoDB para IA');
+      } catch (saleError) {
+        console.error('Error registrando venta para IA:', saleError);
+        // No fallar la orden por esto
+      }
+    }
+
+    res.json({
+      success: true,
+      order: toSnakeCase({ ...order, items }),
+      tickets: toSnakeCase(createdTickets),
+      queuePosition,
+      estimatedWait
+    });
   } catch (error) {
     console.error('Error creating order:', error);
     res.status(500).json({ error: error.message });

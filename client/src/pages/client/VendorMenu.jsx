@@ -208,17 +208,31 @@ const VendorMenu = () => {
 
     const handleDirectPurchase = async (serviceId) => {
         if (isGuest) {
-            setShowLoginPrompt(true);
-            return;
+          setShowLoginPrompt(true);
+          return;
         }
+        
         setPurchasing(serviceId);
         const result = await purchaseDirectly(serviceId, vendorId);
         setPurchasing(null);
-        if (result) {
-            setPurchaseSuccess(serviceId);
-            setTimeout(() => setPurchaseSuccess(null), 3000);
+        
+        // Manejar error de pago
+        if (result?.error) {
+          alert(`Error: ${result.error}`);
+          return;
         }
-    };
+        
+        if (result) {
+          setPurchaseSuccess(serviceId);
+          
+          // Si hubo pago crypto, mostrar mensaje especial
+          if (result.paymentTxHash) {
+            console.log('🎉 Compra con crypto exitosa! TxHash:', result.paymentTxHash);
+          }
+          
+          setTimeout(() => setPurchaseSuccess(null), 3000);
+        }
+      };
 
     const handleAddToCart = (serviceId) => {
         if (isGuest) {

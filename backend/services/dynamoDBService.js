@@ -369,7 +369,19 @@ export async function getPendingOrdersCount(vendorId = null) {
 }
 
 export async function createOrder(orderData) {
-  const { userPrivyId, vendorId, items, totalAmount, queuePosition, estimatedWait } = orderData;
+  const { 
+    userPrivyId, 
+    vendorId, 
+    items, 
+    totalAmount, 
+    queuePosition, 
+    estimatedWait,
+    // x402
+    paymentTxHash,
+    paymentMethod,
+    buyerAddress
+  } = orderData;
+  
   const orderId = `${Date.now()}-${Math.random().toString(36).substr(2, 6)}`;
   const orderNumber = `ORD-${Date.now().toString().slice(-8)}`;
   const now = new Date().toISOString();
@@ -377,7 +389,7 @@ export async function createOrder(orderData) {
   const order = {
     pk: `ORDER#${orderId}`,
     sk: 'META',
-    gsi1pk: vendorId ? `VENDOR_ORDERS#${vendorId}` : 'ORDERS',
+    gsi1pk: vendorId ? `VENDORORDERS#${vendorId}` : 'ORDERS',
     gsi1sk: `ORDER#${now}`,
     gsi2pk: `USER#${userPrivyId}`,
     gsi2sk: `ORDER#${orderId}`,
@@ -390,11 +402,19 @@ export async function createOrder(orderData) {
     estimatedWait: estimatedWait || 0,
     queuePosition: queuePosition || 1,
     totalAmount: totalAmount || 0,
+    // x402
+    paymentTxHash: paymentTxHash || null,
+    paymentMethod: paymentMethod || 'free',
+    buyerAddress: buyerAddress || null,
     createdAt: now,
     updatedAt: now,
   };
 
-  const command = new PutCommand({ TableName: TABLES.APP_DATA, Item: order });
+  const command = new PutCommand({
+    TableName: TABLES.APPDATA,
+    Item: order
+  });
+  
   await docClient.send(command);
   return order;
 }
