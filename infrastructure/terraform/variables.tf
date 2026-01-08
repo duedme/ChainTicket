@@ -62,7 +62,6 @@ variable "privy_app_id" {
 variable "backend_api_url" {
   description = "Backend API URL"
   type        = string
-  default     = "http://localhost:3001" # Cambiar cuando deploys backend
 }
 
 variable "custom_domain" {
@@ -71,12 +70,12 @@ variable "custom_domain" {
   default     = ""
 }
 
-variable "privy_app_secret" {
+/* variable "privy_app_secret" {
   description = "Privy App Secret (sensitive)"
   type        = string
   sensitive   = true
   default     = ""
-}
+} */
 
 variable "payment_receiver_address" {
   description = "Wallet address to receive x402 payments"
