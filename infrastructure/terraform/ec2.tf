@@ -131,7 +131,10 @@ resource "aws_iam_role_policy" "ec2_bedrock" {
           "bedrock:InvokeModelWithResponseStream"
         ]
         Resource = [
-          "arn:aws:bedrock:${var.aws_region}::foundation-model/amazon.titan-*"
+          "arn:aws:bedrock:${var.aws_region}::foundation-model/amazon.titan-*",
+          "arn:aws:bedrock:${var.aws_region}::foundation-model/amazon.nova-*",
+          "arn:aws:bedrock:${var.aws_region}::foundation-model/anthropic.claude-*",
+          "arn:aws:bedrock:${var.aws_region}::foundation-model/meta.llama*"
         ]
       }
     ]
@@ -199,7 +202,7 @@ DYNAMODB_TABLE_SALES_HISTORY=${var.project_name}-sales-history-${var.environment
 DYNAMODB_TABLE_AI_CONVERSATIONS=${var.project_name}-ai-conversations-${var.environment}
 
 # Bedrock
-BEDROCK_MODEL_ID=amazon.titan-text-express-v1
+BEDROCK_MODEL_ID=amazon.nova-micro-v1:0
 ENVFILE
 
 cat > /etc/systemd/system/chainticket.service << 'SERVICE'
@@ -233,7 +236,7 @@ EOF
 
   lifecycle {
     create_before_destroy = true
-    ignore_changes = [ami, user_data]
+    ignore_changes        = [ami, user_data]
   }
 }
 

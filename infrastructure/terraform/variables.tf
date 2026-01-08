@@ -59,10 +59,10 @@ variable "privy_app_id" {
   default     = ""
 }
 
-variable "backend_api_url" {
+/* variable "backend_api_url" {
   description = "Backend API URL"
   type        = string
-}
+} */
 
 variable "custom_domain" {
   description = "Custom domain for Amplify (optional)"
