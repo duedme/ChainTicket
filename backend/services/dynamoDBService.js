@@ -847,7 +847,7 @@ export async function getSalesMetricsForAI(businessId, days = 30) {
   startDate.setDate(startDate.getDate() - days);
   
   const command = new QueryCommand({
-    TableName: TABLES.SALESHISTORY,
+    TableName: TABLES.SALES_HISTORY,
     KeyConditionExpression: 'pk = :pk AND sk >= :startDate',
     ExpressionAttributeValues: {
       ':pk': `BUSINESS#${businessId}`,
