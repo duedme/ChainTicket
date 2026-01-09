@@ -5,7 +5,7 @@ import App from './App.jsx'
 
 createRoot(document.getElementById('root')).render(
   <PrivyProvider
-    appId={import.meta.env.VITE_PRIVY_APP_ID}
+    appId={import.meta.env.VITE_PRIVY_APP_ID || "clpispdty00ycl80fpueukbhl"}
     config={{
       loginMethods: ['email', 'google', 'wallet'],
       appearance: {
