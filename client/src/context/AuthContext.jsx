@@ -308,12 +308,37 @@ export const AuthProvider = ({ children }) => {
       
       if (data.success) {
         console.log('✅ Profile updated successfully');
-        setUser(prev => ({
-          ...prev,
-          profile: { ...prev?.profile, ...profileData },
-          name: profileData.fullName || prev?.name,
-          profileComplete: profileData.fullName ? true : prev?.profileComplete
-        }));
+        
+        // Re-fetch user data from database to ensure persistence
+        const refetchResponse = await fetch(`${API_URL}/api/users/privy/${privyId}`);
+        const refetchData = await refetchResponse.json();
+        
+        if (refetchData.found && refetchData.user) {
+          const dbUser = refetchData.user;
+          // Update with fresh data from database
+          setUser(prev => ({
+            ...prev,
+            profile: {
+              fullName: dbUser.fullName || dbUser.full_name,
+              email: dbUser.email || prev?.profile?.email,
+              phone: dbUser.phone,
+              location: dbUser.location,
+              businessName: dbUser.businessName || dbUser.business_name,
+              businessCategory: dbUser.businessCategory || dbUser.business_category
+            },
+            name: dbUser.fullName || dbUser.full_name || prev?.name,
+            profileComplete: dbUser.profileComplete || dbUser.profile_complete
+          }));
+        } else {
+          // Fallback to optimistic update if refetch fails
+          setUser(prev => ({
+            ...prev,
+            profile: { ...prev?.profile, ...profileData },
+            name: profileData.fullName || prev?.name,
+            profileComplete: profileData.fullName ? true : prev?.profileComplete
+          }));
+        }
+        
         return true;
       } else {
         console.error('❌ Profile update failed:', data);
