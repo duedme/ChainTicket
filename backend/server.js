@@ -461,18 +461,24 @@ app.post('/api/events/create', async (req, res) => {
 });
 
 // DEV MODE - Direct mint (add this to server.js)
+// DEV MODE - Direct mint
 app.post('/api/dev/mint', async (req, res) => {
   const { Aptos, AptosConfig, Network, Account, Ed25519PrivateKey } = await import('@aptos-labs/ts-sdk');
   const aptos = new Aptos(new AptosConfig({ network: Network.CUSTOM, fullnode: 'https://testnet.movementnetwork.xyz/v1' }));
-  const account = Account.fromPrivateKey({ privateKey: new Ed25519PrivateKey(process.env.PAYMENT_PROCESSOR_PRIVATE_KEY || '0x924c5893522a929693538af5ace224c0419d278c46b6f7b97d144520bb6c4af7') });
+  const account = Account.fromPrivateKey({ privateKey: new Ed25519PrivateKey('0x924c5893522a929693538af5ace224c0419d278c46b6f7b97d144520bb6c4af7') });
   const CONTRACT = '0x2339acd68a5b699c8bfefed62febcf497959ca55527227e980c56031b3bfced9';
   const EVENT = req.body.eventAddress || '0x9a434df612a05061f3404dd1fbf2f6035457dfd93caabb3b7034261c92b0a67a';
   const buyer = req.body.buyerAddress || account.accountAddress.toString();
+  const qrHash = Array.from(Buffer.from(Date.now().toString() + Math.random().toString(), 'utf8'));
   
   try {
     const tx = await aptos.transaction.build.simple({
       sender: account.accountAddress,
-      data: { function: `${CONTRACT}::ticket::mint_ticket`, typeArguments: [], functionArguments: [EVENT, buyer] }
+      data: { 
+        function: `${CONTRACT}::ticket::purchase_ticket_free`, 
+        typeArguments: [], 
+        functionArguments: [EVENT, buyer, qrHash] 
+      }
     });
     const pending = await aptos.signAndSubmitTransaction({ signer: account, transaction: tx });
     const result = await aptos.waitForTransaction({ transactionHash: pending.hash });
