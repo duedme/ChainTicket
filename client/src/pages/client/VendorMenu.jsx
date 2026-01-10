@@ -56,6 +56,22 @@ const VendorMenu = () => {
         const vendorIdStr = String(vendorId || '');
         const vendorIdFromObj = String(vendor?.id || '');
         
+        // Debug first few comparisons
+        if (services.indexOf(s) < 3) {
+            console.log('🔎 Filtering service:', {
+                serviceId: s.id,
+                serviceTitle: s.title,
+                serviceVendorId,
+                serviceVendorIdStr,
+                vendorIdStr,
+                vendorIdFromObj,
+                match1: serviceVendorIdStr === vendorIdStr,
+                match2: serviceVendorIdStr === vendorIdFromObj,
+                gsi2skId: vendor?.gsi2sk ? vendor.gsi2sk.replace('VENDOR#', '') : null,
+                match3: vendor?.gsi2sk ? serviceVendorIdStr === vendor.gsi2sk.replace('VENDOR#', '') : false
+            });
+        }
+        
         // Try exact matches first
         if (serviceVendorIdStr === vendorIdStr || serviceVendorIdStr === vendorIdFromObj) {
             return true;
@@ -75,7 +91,7 @@ const VendorMenu = () => {
     
     console.log('✅ Filtered vendorServices:', {
         count: vendorServices.length,
-        services: vendorServices.map(s => ({ id: s.id, title: s.title, vendorId: s.vendorId }))
+        services: vendorServices.slice(0, 5).map(s => ({ id: s.id, title: s.title, vendorId: s.vendorId }))
     });
     
     const cartCount = cart.reduce((sum, item) => sum + item.quantity, 0);
