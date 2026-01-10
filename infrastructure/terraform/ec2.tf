@@ -186,7 +186,7 @@ npm ci --omit=dev
 
 cat > .env << 'ENVFILE'
 PORT=3001
-NODE_ENV=production
+NODE_ENV=development
 AWS_REGION=${var.aws_region}
 
 # Important Addresses
