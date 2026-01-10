@@ -273,10 +273,34 @@ export const DataProvider = ({ children }) => {
         })
       });
       const data = await response.json();
-      if (data.success) {
+      if (data.success && data.service) {
+        // Format the service to match our frontend format
+        const formattedService = {
+          id: data.service.id,
+          vendorId: data.service.vendorid || data.service.vendorId,
+          title: data.service.title,
+          description: data.service.description,
+          image: data.service.image,
+          avgTime: data.service.avgtime || data.service.avgTime,
+          totalStock: data.service.totalstock || data.service.totalStock,
+          sold: data.service.sold || 0,
+          price: parseFloat(data.service.price) || 0,
+          isActive: data.service.isactive ?? data.service.isActive ?? true,
+          schedule: data.service.schedule || {
+            openTime: data.service.scheduleopentime || data.service.schedule?.openTime || '09:00',
+            closeTime: data.service.scheduleclosetime || data.service.schedule?.closeTime || '18:00',
+            days: data.service.scheduledays || data.service.schedule?.days || ['Mon', 'Tue', 'Wed', 'Thu', 'Fri']
+          }
+        };
+        
+        // Add to state immediately so it appears right away
+        setMyServices(prev => [...prev, formattedService]);
+        setServices(prev => [...prev, formattedService]);
+        
+        // Also refresh from server to ensure consistency
         await fetchMyServices();
         await fetchServices(true); // Refresh all services so clients see it
-        return data.service;
+        return formattedService;
       }
     } catch (error) {
       console.error('Error adding service:', error);
