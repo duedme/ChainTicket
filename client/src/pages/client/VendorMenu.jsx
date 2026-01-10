@@ -49,39 +49,43 @@ const VendorMenu = () => {
         allServices: services
     });
     
-    // Try multiple ways to match vendorId - be more flexible with matching
+    // Simple, direct filter - match vendorId exactly
     const vendorServices = services.filter(s => {
-        const serviceVendorId = s.vendorId || s.vendorid;
-        const serviceVendorIdStr = String(serviceVendorId || '');
-        const vendorIdStr = String(vendorId || '');
-        const vendorIdFromObj = String(vendor?.id || '');
+        const serviceVendorId = String(s.vendorId || s.vendorid || '').trim();
+        const matchVendorId = String(vendorId || '').trim();
+        const matchVendorObjId = String(vendor?.id || '').trim();
         
         // Debug first few comparisons
-        if (services.indexOf(s) < 3) {
+        const isFirstFew = services.indexOf(s) < 3;
+        if (isFirstFew) {
             console.log('🔎 Filtering service:', {
                 serviceId: s.id,
                 serviceTitle: s.title,
                 serviceVendorId,
-                serviceVendorIdStr,
-                vendorIdStr,
-                vendorIdFromObj,
-                match1: serviceVendorIdStr === vendorIdStr,
-                match2: serviceVendorIdStr === vendorIdFromObj,
-                gsi2skId: vendor?.gsi2sk ? vendor.gsi2sk.replace('VENDOR#', '') : null,
-                match3: vendor?.gsi2sk ? serviceVendorIdStr === vendor.gsi2sk.replace('VENDOR#', '') : false
+                matchVendorId,
+                matchVendorObjId,
+                match1: serviceVendorId === matchVendorId,
+                match2: serviceVendorId === matchVendorObjId,
+                vendorGsi2sk: vendor?.gsi2sk,
+                gsi2skExtracted: vendor?.gsi2sk ? vendor.gsi2sk.replace('VENDOR#', '').trim() : null,
+                match3: vendor?.gsi2sk ? serviceVendorId === vendor.gsi2sk.replace('VENDOR#', '').trim() : false
             });
         }
         
-        // Try exact matches first
-        if (serviceVendorIdStr === vendorIdStr || serviceVendorIdStr === vendorIdFromObj) {
+        // Match against URL parameter
+        if (serviceVendorId === matchVendorId) {
             return true;
         }
         
-        // Try matching if vendor.gsi2sk contains the vendorId (format: VENDOR#ID)
-        if (vendor?.gsi2sk && vendor.gsi2sk.includes(vendorIdStr)) {
-            // Extract ID from gsi2sk (format: VENDOR#ID)
-            const gsi2skId = vendor.gsi2sk.replace('VENDOR#', '');
-            if (serviceVendorIdStr === gsi2skId) {
+        // Match against vendor.id
+        if (serviceVendorId === matchVendorObjId) {
+            return true;
+        }
+        
+        // Match against gsi2sk (format: VENDOR#ID)
+        if (vendor?.gsi2sk) {
+            const gsi2skId = vendor.gsi2sk.replace('VENDOR#', '').trim();
+            if (serviceVendorId === gsi2skId) {
                 return true;
             }
         }
