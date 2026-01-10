@@ -11,7 +11,13 @@ const app = express();
 app.use(cors({
   origin: '*',
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
+  allowedHeaders: [
+    'Content-Type', 
+    'Authorization', 
+    'X-Requested-With',
+    'X-Payment',        // ← AGREGAR ESTO
+    'X-Buyer-Address'   // ← Y ESTO también
+  ]
 }));
 app.use(express.json());
 
