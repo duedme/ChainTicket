@@ -23,26 +23,28 @@ const VendorMenu = () => {
     const vendor = vendors.find(v => String(v.id) === String(vendorId));
     
     // Debug: Check what vendorId values services have
-    const servicesVendorIds = services.map(s => ({ 
+    const servicesVendorIds = services.slice(0, 5).map(s => ({ 
         id: s.id, 
         title: s.title, 
         vendorId: s.vendorId,
+        vendorid: s.vendorid,
         vendorIdType: typeof s.vendorId,
-        vendorIdString: String(s.vendorId)
+        vendorIdString: String(s.vendorId || s.vendorid || '')
     }));
     
     console.log('🔍 VendorMenu Debug:', {
-        vendorId,
+        vendorIdParam: vendorId,
         vendorIdType: typeof vendorId,
-        vendorIdString: String(vendorId),
         vendor: vendor ? {
             id: vendor.id,
             idType: typeof vendor.id,
             name: vendor.name,
             vendorId: vendor.vendorId,
-            vendorid: vendor.vendorid
+            vendorid: vendor.vendorid,
+            gsi2sk: vendor.gsi2sk,
+            allKeys: Object.keys(vendor)
         } : null,
-        servicesVendorIds: servicesVendorIds.slice(0, 5), // Show first 5 for debugging
+        firstFewServicesVendorIds: servicesVendorIds,
         servicesCount: services.length,
         allServices: services
     });
