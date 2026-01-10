@@ -49,11 +49,16 @@ const VendorMenu = () => {
         allServices: services
     });
     
-    // Simple, direct filter - match vendorId exactly
+    // Simple, direct filter - match vendorId exactly, but exclude invalid vendorIds
     const vendorServices = services.filter(s => {
         const serviceVendorId = String(s.vendorId || s.vendorid || '').trim();
         const matchVendorId = String(vendorId || '').trim();
         const matchVendorObjId = String(vendor?.id || '').trim();
+        
+        // Skip services with invalid vendorIds (like "1", empty, etc.)
+        if (!serviceVendorId || serviceVendorId === '1' || serviceVendorId.length < 5) {
+            return false;
+        }
         
         // Debug first few comparisons
         const isFirstFew = services.indexOf(s) < 3;
