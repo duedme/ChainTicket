@@ -53,8 +53,8 @@ const Cart = () => {
       // Por ahora usamos el eventAddress del primer servicio
       // En producción, esto debería venir del servicio o del vendor
       const eventAddress = cart[0].service.eventAddress || 
-                          import.meta.env.VITE_DEFAULT_EVENT_ADDRESS ||
-                          '0x1234'; // Placeholder - reemplazar con tu event address real
+                    import.meta.env.VITE_DEFAULT_EVENT_ADDRESS ||
+                    '0x2339acd68a5b699c8bfefed62febcf497959ca55527227e980c56031b3bfced9';
 
       console.log('🛒 Starting checkout...');
       console.log('   Total:', totalAmount, 'USD');
