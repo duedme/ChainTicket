@@ -1,3 +1,6 @@
+import { verifyTypedData, createPublicClient, http } from 'viem';
+import { baseSepolia } from 'viem/chains';
+
 import express from 'express';
 import crypto from 'crypto';
 import { Aptos, AptosConfig, Network, Account, Ed25519PrivateKey } from '@aptos-labs/ts-sdk';
@@ -16,6 +19,12 @@ const aptosConfig = new AptosConfig({
   indexer: MOVEMENT_INDEXER,
 });
 const aptos = new Aptos(aptosConfig);
+
+// Cliente para Base Sepolia
+const baseClient = createPublicClient({
+  chain: baseSepolia,
+  transport: http(process.env.BASE_RPC_URL || 'https://sepolia.base.org')
+});
 
 // ============================================
 // FUNCIÓN: Obtener precio del evento desde el indexer
@@ -258,37 +267,92 @@ function createDynamicPaymentMiddleware() {
 // FUNCIÓN: Verificar pago x402
 // ============================================
 async function verifyX402Payment(paymentHeader, expectedAmount) {
+  // En desarrollo, siempre aprobar
+  if (process.env.NODE_ENV === 'development') {
+    console.warn('🧪 DEV MODE: Skipping payment verification');
+    try {
+      const paymentData = JSON.parse(Buffer.from(paymentHeader, 'base64').toString());
+      return { 
+        valid: true, 
+        txHash: paymentData.txHash || 'dev-mode',
+        amount: expectedAmount,
+        sender: paymentData.from || paymentData.sender || 'dev-user'
+      };
+    } catch {
+      return { valid: true, txHash: 'dev-mode', amount: expectedAmount, sender: 'dev-user' };
+    }
+  }
+
   try {
-    // Decodificar el header x402
-    // Formato: base64 encoded JSON con { txHash, chainId, amount, ... }
-    const paymentData = JSON.parse(Buffer.from(paymentHeader, 'base64').toString());
+    // Decodificar header
+    const authData = JSON.parse(Buffer.from(paymentHeader, 'base64').toString());
+    const { from, to, value, validAfter, validBefore, nonce, signature, chainId } = authData;
     
-    const { txHash, chainId, amount, sender } = paymentData;
-    
-    // Verificar que es en la red correcta (Base)
-    if (chainId !== 84532) { // Base testnet
-      return { valid: false, error: 'Invalid chain' };
+    // Verificar chain
+    if (chainId !== 84532) {
+      return { valid: false, error: 'Invalid chain ID' };
     }
     
-    // Verificar monto (con tolerancia del 1%)
-    const expectedAmountWei = Math.floor(expectedAmount * 1_000_000);
-    const tolerance = expectedAmountWei * 0.01;
-    if (Math.abs(Number(amount) - expectedAmountWei) > tolerance) {
-      return { valid: false, error: 'Amount mismatch' };
+    // Verificar que no haya expirado
+    const now = Math.floor(Date.now() / 1000);
+    if (now >= Number(validBefore)) {
+      return { valid: false, error: 'Authorization expired' };
     }
     
-    // Verificar transacción en Base (simplificado - en producción usar RPC)
-    const txVerified = await verifyBaseTransaction(txHash, expectedAmountWei);
-    
-    if (!txVerified) {
-      return { valid: false, error: 'Transaction not confirmed' };
+    // Verificar monto
+    const expectedValueWei = BigInt(Math.floor(expectedAmount * 1000000));
+    if (BigInt(value) < expectedValueWei) {
+      return { valid: false, error: 'Insufficient amount' };
     }
+    
+    // Verificar destinatario
+    if (to.toLowerCase() !== process.env.PAYMENT_RECEIVER_ADDRESS.toLowerCase()) {
+      return { valid: false, error: 'Invalid recipient' };
+    }
+    
+    // Verificar firma EIP-712
+    const isValidSignature = await verifyTypedData({
+      address: from,
+      domain: {
+        name: 'USD Coin',
+        version: '2',
+        chainId: 84532,
+        verifyingContract: '0x036CbD53842c5426634e7929541eC2318f3dCF7e'
+      },
+      types: {
+        TransferWithAuthorization: [
+          { name: 'from', type: 'address' },
+          { name: 'to', type: 'address' },
+          { name: 'value', type: 'uint256' },
+          { name: 'validAfter', type: 'uint256' },
+          { name: 'validBefore', type: 'uint256' },
+          { name: 'nonce', type: 'bytes32' }
+        ]
+      },
+      primaryType: 'TransferWithAuthorization',
+      message: {
+        from,
+        to,
+        value: BigInt(value),
+        validAfter: BigInt(validAfter),
+        validBefore: BigInt(validBefore),
+        nonce
+      },
+      signature
+    });
+    
+    if (!isValidSignature) {
+      return { valid: false, error: 'Invalid signature' };
+    }
+    
+    // TODO: Ejecutar transferWithAuthorization en Base
+    // Por ahora retornamos válido si la firma es correcta
     
     return {
       valid: true,
-      txHash,
+      txHash: `pending-${Date.now()}`,
       amount: expectedAmount,
-      sender
+      sender: from
     };
     
   } catch (error) {
