@@ -1,76 +1,130 @@
 import { useState } from 'react';
 import { usePrivy, useWallets } from '@privy-io/react-auth';
-import { getTicketPrice, purchaseTicketDev } from '../services/ticketService';
+import { getTicketPrice, purchaseTicket, purchaseTicketDev } from '../services/ticketService';
 
-export default function BuyTicketButton({ eventAddress }) {
-  const { authenticated } = usePrivy();
+export default function BuyTicketButton({ eventAddress, devMode = false }) {
+  const { authenticated, login } = usePrivy();
   const { wallets } = useWallets();
   const [loading, setLoading] = useState(false);
+  const [status, setStatus] = useState('');
   const [result, setResult] = useState(null);
   const [error, setError] = useState(null);
 
   const handleBuy = async () => {
-    if (!authenticated || !wallets.length) {
-      setError('Por favor conecta tu wallet primero');
+    // Si no está autenticado, iniciar login
+    if (!authenticated) {
+      login();
+      return;
+    }
+
+    if (!wallets.length) {
+      setError('No se encontró wallet. Intenta reconectarte.');
       return;
     }
 
     setLoading(true);
     setError(null);
+    setResult(null);
 
     try {
-      // 1. Obtener precio (opcional, para mostrar)
-      const priceInfo = await getTicketPrice(eventAddress);
-      console.log('💰 Precio:', priceInfo.price, priceInfo.currency);
-
-      // 2. Obtener dirección del usuario
-      const userWallet = wallets[0].address;
-      console.log('👤 Wallet del usuario:', userWallet);
-
-      // 3. Comprar ticket (modo desarrollo)
-      const purchaseResult = await purchaseTicketDev(eventAddress, userWallet);
+      const wallet = wallets[0];
       
-      if (purchaseResult.success) {
-        console.log('🎫 Ticket comprado:', purchaseResult);
-        setResult(purchaseResult);
+      if (devMode) {
+        // Modo desarrollo (sin firma real)
+        setStatus('Procesando compra (dev mode)...');
+        const purchaseResult = await purchaseTicketDev(eventAddress, wallet.address);
+        
+        if (purchaseResult.success) {
+          setResult(purchaseResult);
+        } else {
+          setError(purchaseResult.error || 'Error al comprar');
+        }
       } else {
-        setError(purchaseResult.error || 'Error al comprar ticket');
+        // Modo producción (con firma real)
+        setStatus('Obteniendo precio...');
+        const priceInfo = await getTicketPrice(eventAddress);
+        
+        setStatus(`Firma la autorización de ${priceInfo.price} USDC...`);
+        const purchaseResult = await purchaseTicket(eventAddress, wallet);
+        
+        if (purchaseResult.success) {
+          setResult(purchaseResult);
+          setStatus('');
+        } else {
+          setError(purchaseResult.error || purchaseResult.message || 'Error al comprar');
+        }
       }
     } catch (err) {
       console.error('Error:', err);
-      setError(err.message);
+      if (err.message?.includes('User rejected')) {
+        setError('Firma cancelada por el usuario');
+      } else {
+        setError(err.message || 'Error desconocido');
+      }
     } finally {
       setLoading(false);
+      setStatus('');
     }
   };
 
   return (
-    <div className="buy-ticket-container">
+    <div className="buy-ticket-container" style={{ padding: '20px' }}>
       <button 
         onClick={handleBuy}
-        disabled={loading || !authenticated}
-        className="buy-button"
+        disabled={loading}
+        style={{
+          padding: '15px 30px',
+          fontSize: '18px',
+          backgroundColor: loading ? '#666' : '#f0b90b',
+          color: '#000',
+          border: 'none',
+          borderRadius: '8px',
+          cursor: loading ? 'not-allowed' : 'pointer',
+          fontWeight: 'bold'
+        }}
       >
-        {loading ? '⏳ Procesando...' : '🎫 Comprar Ticket (5 USDC)'}
+        {!authenticated 
+          ? '🔐 Conectar Wallet'
+          : loading 
+            ? '⏳ ' + (status || 'Procesando...')
+            : '🎫 Comprar Ticket (5 USDC)'
+        }
       </button>
 
       {error && (
-        <div className="error-message">
+        <div style={{ 
+          marginTop: '15px', 
+          padding: '10px', 
+          backgroundColor: '#ff4444', 
+          color: 'white',
+          borderRadius: '8px'
+        }}>
           ❌ {error}
         </div>
       )}
 
       {result && (
-        <div className="success-message">
-          <h3>✅ ¡Ticket Comprado!</h3>
-          <p><strong>Ticket:</strong> {result.ticket.address.slice(0, 20)}...</p>
-          <p><strong>QR Hash:</strong> {result.ticket.qrHash.slice(0, 20)}...</p>
+        <div style={{ 
+          marginTop: '15px', 
+          padding: '15px', 
+          backgroundColor: '#00c853', 
+          color: 'white',
+          borderRadius: '8px'
+        }}>
+          <h3 style={{ margin: '0 0 10px 0' }}>✅ ¡Ticket Comprado!</h3>
+          <p style={{ margin: '5px 0', fontSize: '14px' }}>
+            <strong>Ticket:</strong> {result.ticket?.address?.slice(0, 25)}...
+          </p>
+          <p style={{ margin: '5px 0', fontSize: '14px' }}>
+            <strong>QR Hash:</strong> {result.ticket?.qrHash?.slice(0, 25)}...
+          </p>
           <a 
-            href={`https://explorer.movementnetwork.xyz/txn/${result.movementTx.hash}?network=testnet`}
+            href={`https://explorer.movementnetwork.xyz/txn/${result.movementTx?.hash}?network=testnet`}
             target="_blank"
             rel="noopener noreferrer"
+            style={{ color: 'white', textDecoration: 'underline' }}
           >
-            Ver en Explorer →
+            Ver transacción en Explorer →
           </a>
         </div>
       )}
