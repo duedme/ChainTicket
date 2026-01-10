@@ -7,8 +7,8 @@ import {
   Plus, Edit2, Check, X, Clock, Package, Trash2, Power, 
   Calendar, AlertTriangle, Lock, Zap, CheckCircle, Loader 
 } from 'lucide-react';
-import { AIServiceAssistant } from '../../components/AIServiceAssistant';
-import { AIBusinessConsultant } from '../../components/AIBusinessConsultant';
+import AIServiceAssistant from '../../components/AIServiceAssistant';
+import AIBusinessConsultant from '../../components/AIBusinessConsultant';
 import { useMovement } from '../../hooks/useMovement';
 
 const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
