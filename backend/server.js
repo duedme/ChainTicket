@@ -469,19 +469,25 @@ app.post('/api/dev/mint', async (req, res) => {
   const CONTRACT = '0x2339acd68a5b699c8bfefed62febcf497959ca55527227e980c56031b3bfced9';
   const EVENT = req.body.eventAddress || '0x9a434df612a05061f3404dd1fbf2f6035457dfd93caabb3b7034261c92b0a67a';
   const buyer = req.body.buyerAddress || account.accountAddress.toString();
+  const qrHash = Array.from(Buffer.from(`ticket-${Date.now()}`));
   
   try {
     const tx = await aptos.transaction.build.simple({
       sender: account.accountAddress,
       data: { 
-        function: `${CONTRACT}::ticket::dev_mint_ticket`, 
+        function: `${CONTRACT}::ticket::mint_ticket_after_payment`, 
         typeArguments: [], 
-        functionArguments: [EVENT, buyer] 
+        functionArguments: [EVENT, buyer, qrHash] 
       }
     });
     const pending = await aptos.signAndSubmitTransaction({ signer: account, transaction: tx });
     await aptos.waitForTransaction({ transactionHash: pending.hash });
-    res.json({ success: true, txHash: pending.hash, explorer: `https://explorer.movementlabs.xyz/txn/${pending.hash}?network=bardock+testnet` });
+    res.json({ 
+      success: true, 
+      txHash: pending.hash, 
+      explorer: `https://explorer.movementlabs.xyz/txn/${pending.hash}?network=bardock+testnet`,
+      message: "🎫 Ticket minted via x402 payment flow (dev mode)"
+    });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
