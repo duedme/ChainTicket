@@ -1,6 +1,5 @@
 import { useState, useCallback } from 'react';
 import { usePrivy, useWallets } from '@privy-io/react-auth';
-import { wrapFetchWithPayment } from '@coinbase/x402/client';
 
 // Movement Network Configuration
 const MOVEMENT_CONFIG = {
