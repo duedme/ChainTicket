@@ -120,7 +120,16 @@ async function getEventInfo(eventAddress) {
 // ============================================
 async function mintTicketOnChain(eventAddress, buyerAddress, paymentTxHash) {
   try {
-    // Cargar la cuenta del payment processor desde private key
+    // ⭐ Convertir dirección EVM a formato Movement (64 chars)
+    let formattedBuyer = buyerAddress;
+    if (buyerAddress.startsWith('0x')) {
+      const addressWithout0x = buyerAddress.slice(2);
+      if (addressWithout0x.length < 64) {
+        formattedBuyer = '0x' + addressWithout0x.padStart(64, '0');
+      }
+    }
+    console.log('📝 Formatted buyer address:', formattedBuyer);
+
     const privateKeyHex = process.env.PAYMENT_PROCESSOR_PRIVATE_KEY;
     if (!privateKeyHex) {
       throw new Error('Payment processor private key not configured');
@@ -129,37 +138,33 @@ async function mintTicketOnChain(eventAddress, buyerAddress, paymentTxHash) {
     const privateKey = new Ed25519PrivateKey(privateKeyHex);
     const paymentProcessor = Account.fromPrivateKey({ privateKey });
     
-    // Generar QR hash único para el ticket
+    // Generar QR hash - usar formattedBuyer ⭐
     const qrHash = crypto.createHash('sha256')
-      .update(`${eventAddress}-${buyerAddress}-${paymentTxHash}-${Date.now()}`)
+      .update(`${eventAddress}-${formattedBuyer}-${paymentTxHash}-${Date.now()}`)
       .digest();
     
-    // Construir y enviar transacción
     const transaction = await aptos.transaction.build.simple({
       sender: paymentProcessor.accountAddress,
       data: {
         function: `${CONTRACT_ADDRESS}::ticket::mint_ticket_after_payment`,
         typeArguments: [],
         functionArguments: [
-          eventAddress,      // event_object: Object<Event>
-          buyerAddress,      // buyer: address
-          Array.from(qrHash) // qr_hash: vector<u8>
+          eventAddress,
+          formattedBuyer,
+          Array.from(qrHash)
         ]
       }
     });
     
-    // Firmar y enviar
     const pendingTx = await aptos.signAndSubmitTransaction({
       signer: paymentProcessor,
       transaction
     });
     
-    // Esperar confirmación
     const committedTx = await aptos.waitForTransaction({
       transactionHash: pendingTx.hash
     });
     
-    // Extraer ticket address del evento emitido
     let ticketAddress = null;
     if (committedTx.events) {
       const purchaseEvent = committedTx.events.find(
@@ -175,7 +180,7 @@ async function mintTicketOnChain(eventAddress, buyerAddress, paymentTxHash) {
       txHash: pendingTx.hash,
       ticketAddress,
       qrHash: qrHash.toString('hex'),
-      buyer: buyerAddress
+      buyer: formattedBuyer
     };
     
   } catch (error) {
