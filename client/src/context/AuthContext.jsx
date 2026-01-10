@@ -310,7 +310,7 @@ export const AuthProvider = ({ children }) => {
         console.log('✅ Profile updated successfully');
         
         // Re-fetch user data from database to ensure persistence
-        const refetchResponse = await fetch(`${API_URL}/api/users/privy/${privyId}`);
+        const refetchResponse = await fetch(`${API_URL}/api/users/${privyId}`);
         const refetchData = await refetchResponse.json();
         
         if (refetchData.found && refetchData.user) {
