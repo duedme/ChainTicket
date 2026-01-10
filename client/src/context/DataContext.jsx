@@ -7,7 +7,7 @@ const DataContext = createContext();
 
 export const useData = () => useContext(DataContext);
 
-const API_URL = import.meta.env.VITE_API_URL;
+const API_URL = import.meta.env.VITE_API_URL || 'https://d4y2c4layjh2.cloudfront.net';
 
 export const DataProvider = ({ children }) => {
   const { user, isGuest } = useAuth();
