@@ -21,9 +21,8 @@ const AIBusinessConsultant = () => {
   ];
 
   const sendMessage = async (question) => {
-    if (!question.trim() && !inputMessage.trim()) return;
-    
-    const messageToSend = question || inputMessage;
+    const messageToSend = (question || inputMessage || '').trim();
+    if (!messageToSend) return;
     
     // Add user message
     setMessages(prev => [...prev, { role: 'user', content: messageToSend }]);

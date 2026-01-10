@@ -85,14 +85,14 @@ General guidelines:
 // FUNCIONES PRINCIPALES
 
 // Generar recomendación de tickets
-export async function generateTicketRecommendation(businessId, question) {
+export async function generateTicketRecommendation(businessId, question, additionalContext = "") {
   try {
     // Obtener contexto del negocio
     const businessContext = await getBusinessContextForAI(businessId);
     const contextPrompt = buildContextPrompt(businessContext);
     
     // Construir el mensaje completo
-    const userMessage = `${contextPrompt}\n\n## ADMIN QUESTION:\n${question}\n\nProvide a specific recommendation with concrete numbers and brief justification.`;
+    const userMessage = `${contextPrompt}\n\n${additionalContext ? `## ADDITIONAL CONTEXT\n${additionalContext}\n\n` : ''}## ADMIN QUESTION:\n${question}\n\nProvide a specific recommendation with concrete numbers and brief justification.`;
     
     // Invocar Bedrock
     const response = await invokeModel(userMessage);

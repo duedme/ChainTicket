@@ -29,7 +29,22 @@ router.post('/recommend', async (req, res) => {
     }
 
     console.log(`🤖 Generating recommendation for business: ${businessId}`);
-    const result = await generateTicketRecommendation(businessId, question);
+    
+    // Obtener métricas financieras para enriquecer el contexto
+    let additionalContext = "";
+    try {
+      const salesMetrics = await getSalesMetricsForAI(businessId, 30);
+      additionalContext = `Financial Summary (Last 30 days):
+- Total Sales: ${salesMetrics.totalSales}
+- Total Revenue: $${salesMetrics.totalRevenue.toFixed(2)}
+- Crypto Sales (USDC): ${salesMetrics.crypto.salesCount} transactions
+- Crypto Revenue: $${salesMetrics.crypto.revenue.toFixed(2)} USDC
+- Crypto Adoption: ${salesMetrics.crypto.percentage}%`;
+    } catch (metricError) {
+      console.error('Error fetching metrics for recommendation:', metricError);
+    }
+
+    const result = await generateTicketRecommendation(businessId, question, additionalContext);
 
     res.json(result);
   } catch (error) {
