@@ -44,14 +44,25 @@ export const DataProvider = ({ children }) => {
           // Try to extract vendorId from multiple possible sources
           let extractedVendorId = s.vendorid || s.vendorId || s.vendor_id || null;
           
-          // If vendorId is missing, try to extract from gsi3pk (format: VENDOR#ID)
-          if (!extractedVendorId && s.gsi3pk && s.gsi3pk.startsWith('VENDOR#')) {
-            extractedVendorId = s.gsi3pk.replace('VENDOR#', '');
+          // Validate that vendorId is not just "1" or empty - those are likely old/broken records
+          if (extractedVendorId === '1' || extractedVendorId === 1 || extractedVendorId === '') {
+            extractedVendorId = null;
+          }
+          
+          // If vendorId is missing or invalid, try to extract from gsi3pk (format: VENDOR#ID)
+          if (!extractedVendorId && s.gsi3pk && typeof s.gsi3pk === 'string' && s.gsi3pk.startsWith('VENDOR#')) {
+            const extracted = s.gsi3pk.replace('VENDOR#', '').trim();
+            if (extracted && extracted !== '1' && extracted.length > 1) {
+              extractedVendorId = extracted;
+            }
           }
           
           // Also try gsi2pk as fallback (though this should be OWNER#)
-          if (!extractedVendorId && s.gsi2pk && s.gsi2pk.startsWith('VENDOR#')) {
-            extractedVendorId = s.gsi2pk.replace('VENDOR#', '');
+          if (!extractedVendorId && s.gsi2pk && typeof s.gsi2pk === 'string' && s.gsi2pk.startsWith('VENDOR#')) {
+            const extracted = s.gsi2pk.replace('VENDOR#', '').trim();
+            if (extracted && extracted !== '1' && extracted.length > 1) {
+              extractedVendorId = extracted;
+            }
           }
           
           const formatted = {
