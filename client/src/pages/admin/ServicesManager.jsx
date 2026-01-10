@@ -405,6 +405,9 @@ const ServicesManager = () => {
                     ))}
                 </AnimatePresence>
             </div>
+            
+            {/* AI Service Assistant */}
+            <AIServiceAssistant />
         </div>
     );
 };
