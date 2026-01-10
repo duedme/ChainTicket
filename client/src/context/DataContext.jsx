@@ -210,12 +210,49 @@ export const DataProvider = ({ children }) => {
   // Service CRUD
   const addService = async (newService) => {
     try {
+      if (!user?.privyId) {
+        console.error('No user authenticated');
+        return null;
+      }
+
       // Find vendor for this admin
-      const myVendor = vendors.find(v => v.owner_privy_id === user?.privyId || v.ownerPrivyId === user?.privyId);
-      const vendorId = myVendor?.id;
+      let myVendor = vendors.find(v => v.owner_privy_id === user?.privyId || v.ownerPrivyId === user?.privyId);
+      let vendorId = myVendor?.id;
+      
+      // If no vendor exists, create one automatically
+      if (!vendorId) {
+        console.log('No vendor found, creating one automatically...');
+        const vendorName = user.profile?.businessName || user.profile?.fullName || 'My Business';
+        const vendorType = user.profile?.businessCategory || 'restaurant';
+        
+        const createVendorResponse = await fetch(`${API_URL}/api/vendors`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            ownerPrivyId: user.privyId,
+            name: vendorName,
+            type: vendorType,
+            image: 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?q=80&w=2670&auto=format&fit=crop',
+            description: `Business owned by ${user.name}`,
+            vendorType: 'restaurant_menu',
+            usesCart: false
+          })
+        });
+        
+        const vendorData = await createVendorResponse.json();
+        if (vendorData.success && vendorData.vendor) {
+          vendorId = vendorData.vendor.id;
+          // Refresh vendors list
+          await fetchVendors();
+          console.log('✅ Vendor created successfully:', vendorId);
+        } else {
+          console.error('Failed to create vendor:', vendorData);
+          return null;
+        }
+      }
       
       if (!vendorId) {
-        console.error('No vendor found for this admin');
+        console.error('Could not get or create vendor');
         return null;
       }
       
@@ -224,7 +261,7 @@ export const DataProvider = ({ children }) => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ownerPrivyId: user?.privyId,
-          vendorId: vendorId, // Add vendorId
+          vendorId: vendorId,
           title: newService.title,
           description: newService.description,
           image: newService.image,
