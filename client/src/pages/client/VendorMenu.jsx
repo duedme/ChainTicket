@@ -47,13 +47,28 @@ const VendorMenu = () => {
         allServices: services
     });
     
-    // Try multiple ways to match vendorId
+    // Try multiple ways to match vendorId - be more flexible with matching
     const vendorServices = services.filter(s => {
         const serviceVendorId = s.vendorId || s.vendorid;
-        const match1 = String(serviceVendorId) === String(vendorId);
-        const match2 = String(serviceVendorId) === String(vendor?.id);
-        const match3 = String(serviceVendorId) === String(vendor?.vendorId);
-        return match1 || match2 || match3;
+        const serviceVendorIdStr = String(serviceVendorId || '');
+        const vendorIdStr = String(vendorId || '');
+        const vendorIdFromObj = String(vendor?.id || '');
+        
+        // Try exact matches first
+        if (serviceVendorIdStr === vendorIdStr || serviceVendorIdStr === vendorIdFromObj) {
+            return true;
+        }
+        
+        // Try matching if vendor.gsi2sk contains the vendorId (format: VENDOR#ID)
+        if (vendor?.gsi2sk && vendor.gsi2sk.includes(vendorIdStr)) {
+            // Extract ID from gsi2sk (format: VENDOR#ID)
+            const gsi2skId = vendor.gsi2sk.replace('VENDOR#', '');
+            if (serviceVendorIdStr === gsi2skId) {
+                return true;
+            }
+        }
+        
+        return false;
     });
     
     console.log('✅ Filtered vendorServices:', {
