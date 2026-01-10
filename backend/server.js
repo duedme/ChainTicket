@@ -184,10 +184,18 @@ app.post('/api/services', async (req, res) => {
 
 app.patch('/api/services/:id', async (req, res) => {
   try {
-    const { title, description, image, avgTime, totalStock, price, isActive, schedule } = req.body;
-    const service = await db.updateService(req.params.id, {
-      title, description, image, avgTime, totalStock, price, isActive, schedule
+    const { 
+      title, description, image, avgTime, totalStock, 
+      price, isActive, schedule,
+      eventAddress
+    } = req.body;
+    
+    const service = await db.updateService(req.params.id, { 
+      title, description, image, avgTime, totalStock, 
+      price, isActive, schedule,
+      eventAddress
     });
+    
     if (!service) return res.status(404).json({ error: 'Service not found' });
     res.json({ success: true, service: toSnakeCase(service) });
   } catch (error) {
