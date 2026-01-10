@@ -30,7 +30,7 @@ const Cart = () => {
   const { purchaseTicket, loading: paymentLoading, error: paymentError } = useX402Payment();
   const navigate = useNavigate();
   
-  const [checkoutStatus, setCheckoutStatus] = useState(null); // null | 'processing' | 'success' | 'error'
+  const [checkoutStatus, setCheckoutStatus] = useState(null);
   const [purchaseResult, setPurchaseResult] = useState(null);
   const [errorMessage, setErrorMessage] = useState(null);
 
@@ -42,20 +42,27 @@ const Cart = () => {
     ? Math.max(...cart.map(item => item.service.avgTime || 0)) 
     : 0;
 
+  // Verificar si todos los servicios están on-chain
+  const allServicesOnChain = cart.length > 0 && cart.every(item => item.service.eventAddress);
+  const servicesNotOnChain = cart.filter(item => !item.service.eventAddress);
+
   // Manejar checkout con x402
   const handleCheckout = async () => {
     if (cart.length === 0) return;
+    
+    // Validar que el servicio esté publicado on-chain
+    const eventAddress = cart[0].service.eventAddress;
+    
+    if (!eventAddress) {
+      setCheckoutStatus('error');
+      setErrorMessage('This service is not available for purchase yet. The vendor needs to publish it on-chain first.');
+      return;
+    }
     
     setCheckoutStatus('processing');
     setErrorMessage(null);
 
     try {
-      // Por ahora usamos el eventAddress del primer servicio
-      // En producción, esto debería venir del servicio o del vendor
-      const eventAddress = cart[0].service.eventAddress || 
-                    import.meta.env.VITE_DEFAULT_EVENT_ADDRESS ||
-                    '0x2339acd68a5b699c8bfefed62febcf497959ca55527227e980c56031b3bfced9';
-
       console.log('🛒 Starting checkout...');
       console.log('   Total:', totalAmount, 'USD');
       console.log('   Event:', eventAddress);
@@ -64,7 +71,6 @@ const Cart = () => {
       // Si el total es 0, procesar como gratuito
       if (totalAmount === 0) {
         console.log('💸 Free order, skipping payment...');
-        // TODO: Implementar lógica para tickets gratis
         setCheckoutStatus('success');
         setPurchaseResult({ ticket: { address: 'free-ticket' } });
         clearCart();
@@ -209,12 +215,18 @@ const Cart = () => {
                   className="glass-panel p-6 flex items-center gap-6"
                 >
                   {/* Image */}
-                  <div className="w-24 h-24 bg-[#111] overflow-hidden flex-shrink-0">
+                  <div className="w-24 h-24 bg-[#111] overflow-hidden flex-shrink-0 relative">
                     <img 
                       src={item.service.image} 
                       className="w-full h-full object-cover"
                       alt={item.service.title}
                     />
+                    {/* On-chain indicator */}
+                    {item.service.eventAddress ? (
+                      <div className="absolute top-1 right-1 w-3 h-3 bg-green-500 rounded-full" title="On-chain" />
+                    ) : (
+                      <div className="absolute top-1 right-1 w-3 h-3 bg-yellow-500 rounded-full" title="Not on-chain" />
+                    )}
                   </div>
 
                   {/* Info */}
@@ -233,6 +245,10 @@ const Cart = () => {
                         </span>
                       )}
                     </div>
+                    {/* Warning if not on-chain */}
+                    {!item.service.eventAddress && (
+                      <p className="text-yellow-400 text-xs mt-1">⚠ Not available yet</p>
+                    )}
                   </div>
 
                   {/* Quantity Controls */}
@@ -292,10 +308,24 @@ const Cart = () => {
               </div>
             </div>
 
+            {/* Warning: Service not on-chain */}
+            {!allServicesOnChain && servicesNotOnChain.length > 0 && (
+              <div className="mb-6 p-4 bg-yellow-500/10 border border-yellow-500/30 rounded-lg flex items-start gap-3">
+                <AlertCircle className="w-5 h-5 text-yellow-400 flex-shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-yellow-400 font-medium text-sm">Service Not Available</p>
+                  <p className="text-gray-400 text-xs mt-1">
+                    "{servicesNotOnChain.map(i => i.service.title).join('", "')}" 
+                    {servicesNotOnChain.length === 1 ? ' is' : ' are'} not published on-chain yet.
+                  </p>
+                </div>
+              </div>
+            )}
+
             {/* Checkout Button */}
             <button 
               onClick={handleCheckout}
-              disabled={paymentLoading || checkoutStatus === 'processing' || cart.length === 0}
+              disabled={paymentLoading || checkoutStatus === 'processing' || cart.length === 0 || !allServicesOnChain}
               className="btn-premium w-full py-5 text-sm flex items-center justify-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {(paymentLoading || checkoutStatus === 'processing') ? (
@@ -303,6 +333,8 @@ const Cart = () => {
                   <Loader2 className="w-5 h-5 animate-spin" />
                   <span>Processing Payment...</span>
                 </>
+              ) : !allServicesOnChain ? (
+                'SERVICE NOT AVAILABLE'
               ) : (
                 'CONFIRM ORDER'
               )}
