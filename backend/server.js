@@ -469,7 +469,6 @@ app.post('/api/dev/mint', async (req, res) => {
   const CONTRACT = '0x2339acd68a5b699c8bfefed62febcf497959ca55527227e980c56031b3bfced9';
   const EVENT = req.body.eventAddress || '0x9a434df612a05061f3404dd1fbf2f6035457dfd93caabb3b7034261c92b0a67a';
   const buyer = req.body.buyerAddress || account.accountAddress.toString();
-  const qrHash = Array.from(Buffer.from(Date.now().toString() + Math.random().toString(), 'utf8'));
   
   try {
     const tx = await aptos.transaction.build.simple({
@@ -477,11 +476,11 @@ app.post('/api/dev/mint', async (req, res) => {
       data: { 
         function: `${CONTRACT}::ticket::purchase_ticket_free`, 
         typeArguments: [], 
-        functionArguments: [EVENT, buyer, qrHash] 
+        functionArguments: [EVENT, buyer] 
       }
     });
     const pending = await aptos.signAndSubmitTransaction({ signer: account, transaction: tx });
-    const result = await aptos.waitForTransaction({ transactionHash: pending.hash });
+    await aptos.waitForTransaction({ transactionHash: pending.hash });
     res.json({ success: true, txHash: pending.hash, explorer: `https://explorer.movementlabs.xyz/txn/${pending.hash}?network=bardock+testnet` });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
