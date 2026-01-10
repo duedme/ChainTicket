@@ -25,39 +25,40 @@ const WalletWidget = ({ compact = false }) => {
 
     const fetchBalance = async () => {
         if (!address) return;
-        
         setLoadingBalance(true);
         try {
-            // Fetch balance from Movement testnet RPC
-            const response = await fetch('https://testnet.movementnetwork.xyz/v1', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    jsonrpc: '2.0',
-                    method: 'eth_getBalance',
-                    params: [address, 'latest'],
-                    id: 1
-                })
-            });
-
-            const data = await response.json();
-            
-            if (data.result) {
-                // Convert hex balance to decimal and format
-                const balanceWei = parseInt(data.result, 16);
-                const balanceMove = (balanceWei / 1e18).toFixed(4);
-                setBalance(balanceMove);
-            } else {
-                console.error('Error fetching balance:', data.error);
-                setBalance('0.00');
-            }
+          // Llamar a balanceOf de USDC en Base Sepolia
+          const USDC_ADDRESS = '0x036CbD53842c5426634e7929541eC2318f3dCF7e';
+          const balanceOfSelector = '0x70a08231'; // balanceOf(address)
+          const paddedAddress = address.slice(2).padStart(64, '0');
+          
+          const response = await fetch('https://sepolia.base.org', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              jsonrpc: '2.0',
+              method: 'eth_call',
+              params: [{
+                to: USDC_ADDRESS,
+                data: balanceOfSelector + paddedAddress
+              }, 'latest'],
+              id: 1
+            })
+          });
+          
+          const data = await response.json();
+          if (data.result) {
+            const balanceWei = parseInt(data.result, 16);
+            const balanceUSDC = (balanceWei / 1e6).toFixed(2); // USDC tiene 6 decimales
+            setBalance(balanceUSDC);
+          }
         } catch (error) {
-            console.error('Error fetching balance:', error);
-            setBalance('0.00');
+          console.error('Error fetching USDC balance:', error);
+          setBalance('0.00');
         } finally {
-            setLoadingBalance(false);
+          setLoadingBalance(false);
         }
-    };
+      };
 
     const copyAddress = () => {
         if (address) {
@@ -127,10 +128,11 @@ const WalletWidget = ({ compact = false }) => {
                     ) : (
                         <>
                             <span className="text-3xl font-bold text-white">{balance || '0.00'}</span>
-                            <span className="text-gray-500 text-sm">MOVE</span>
+                            <span className="text-gray-500 text-sm">USDC</span>
                         </>
                     )}
                 </div>
+                <p className="text-[10px] text-gray-600 mt-1">Base Sepolia</p>
             </div>
 
             {/* Address */}
