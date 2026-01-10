@@ -28,30 +28,38 @@ export const DataProvider = ({ children }) => {
   const fetchServices = useCallback(async (activeOnly = false) => {
     try {
       const url = activeOnly ? `${API_URL}/api/services?activeOnly=true` : `${API_URL}/api/services`;
+      console.log('🔍 Fetching services from:', url);
       const response = await fetch(url);
       const data = await response.json();
+      console.log('📦 Services API response:', { activeOnly, servicesCount: data.services?.length || 0, data });
+      
       if (data.services) {
         const formattedServices = data.services.map(s => ({
           id: s.id,
-          vendorId: s.vendorid,
+          vendorId: s.vendorid || s.vendorId, // Handle both snake_case and camelCase
           title: s.title,
           description: s.description,
           image: s.image,
-          avgTime: s.avgtime,
-          totalStock: s.totalstock,
+          avgTime: s.avgtime || s.avgTime,
+          totalStock: s.totalstock || s.totalStock,
           sold: s.sold || 0,
           price: parseFloat(s.price) || 0,
-          isActive: s.isactive,
+          isActive: s.isactive ?? s.isActive ?? true,
           schedule: {
-            openTime: s.scheduleopentime,
-            closeTime: s.scheduleclosetime,
-            days: s.scheduledays
+            openTime: s.scheduleopentime || s.schedule?.openTime || '09:00',
+            closeTime: s.scheduleclosetime || s.schedule?.closeTime || '18:00',
+            days: s.scheduledays || s.schedule?.days || ['Mon', 'Tue', 'Wed', 'Thu', 'Fri']
           }
         }));
+        console.log('✅ Formatted services for clients:', formattedServices.length, formattedServices);
         setServices(formattedServices);
+      } else {
+        console.warn('⚠️ No services in response:', data);
+        setServices([]);
       }
     } catch (error) {
-      console.error('Error fetching services:', error);
+      console.error('❌ Error fetching services:', error);
+      setServices([]);
     }
   }, []);
 
