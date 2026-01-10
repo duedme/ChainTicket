@@ -474,7 +474,7 @@ app.post('/api/dev/mint', async (req, res) => {
     const tx = await aptos.transaction.build.simple({
       sender: account.accountAddress,
       data: { 
-        function: `${CONTRACT}::ticket::purchase_ticket_free`, 
+        function: `${CONTRACT}::ticket::dev_mint_ticket`, 
         typeArguments: [], 
         functionArguments: [EVENT, buyer] 
       }
