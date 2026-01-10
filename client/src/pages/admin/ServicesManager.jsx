@@ -4,6 +4,7 @@ import { useAuth } from '../../context/AuthContext';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, Edit2, Check, X, Clock, Package, Trash2, Power, Calendar, AlertTriangle, Lock } from 'lucide-react';
 import AIServiceAssistant from '../../components/AIServiceAssistant';
+import AIBusinessConsultant from '../../components/AIBusinessConsultant';
 
 const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
@@ -406,8 +407,9 @@ const ServicesManager = () => {
                 </AnimatePresence>
             </div>
             
-            {/* AI Service Assistant */}
+            {/* AI Assistants */}
             <AIServiceAssistant />
+            <AIBusinessConsultant />
         </div>
     );
 };
