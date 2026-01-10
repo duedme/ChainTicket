@@ -9,7 +9,6 @@ import {
 } from 'lucide-react';
 import AIServiceAssistant from '../../components/AIServiceAssistant';
 import AIBusinessConsultant from '../../components/AIBusinessConsultant';
-import { useMovement } from '../../hooks/useMovement';
 
 const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 const CONTRACT_ADDRESS = import.meta.env.VITE_CONTRACT_ADDRESS || '0x2339acd68a5b699c8bfefed62febcf497959ca55527227e980c56031b3bfced9';
@@ -17,7 +16,6 @@ const CONTRACT_ADDRESS = import.meta.env.VITE_CONTRACT_ADDRESS || '0x2339acd68a5
 const ServicesManager = () => {
   const { myServices, updateService, addService, deleteService, toggleServiceActive } = useData();
   const { isGuest, connectWallet } = useAuth();
-  const { createEvent, wallet } = useMovement();
 
   useEffect(() => {
     console.log('ServicesManager myServices changed:', { count: myServices?.length || 0, services: myServices });
@@ -126,48 +124,46 @@ const ServicesManager = () => {
   };
 
   const handlePublish = async () => {
-    if (!wallet) {
-      alert('Wallet not connected');
-      return;
-    }
-
     setPublishStep('publishing');
     setPublishError(null);
-
+  
     try {
-      const adminRegistry = CONTRACT_ADDRESS;
-      const paymentProcessor = CONTRACT_ADDRESS;
-
-      const result = await createEvent(
-        adminRegistry,
-        publishModalService.title,
-        publishModalService.description || `Ticket for ${publishModalService.title}`,
-        publishConfig.totalTickets,
-        Math.floor(publishConfig.ticketPrice * 1000000), // Convert to 6 decimals
-        publishConfig.transferable,
-        publishConfig.resalable,
-        publishConfig.permanent,
-        publishConfig.refundable,
-        paymentProcessor
-      );
-
+      // Llamar al backend para crear el evento
+      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3001'}/api/events/create`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: publishModalService.title,
+          description: publishModalService.description || `Tickets for ${publishModalService.title}`,
+          totalTickets: publishConfig.totalTickets,
+          ticketPrice: publishConfig.ticketPrice,
+          transferable: publishConfig.transferable,
+          resalable: publishConfig.resalable,
+          permanent: publishConfig.permanent,
+          refundable: publishConfig.refundable
+        })
+      });
+  
+      const result = await response.json();
+      
+      if (!response.ok || !result.success) {
+        throw new Error(result.error || 'Failed to create event');
+      }
+  
       console.log('Event created:', result);
-
-      // Extract event address from transaction
-      const eventAddress = await extractEventAddress(result.hash);
-
-      setPublishResult({ eventAddress, txHash: result.hash });
+  
+      setPublishResult({ eventAddress: result.eventAddress, txHash: result.txHash });
       setPublishStep('success');
-
-      // Save eventAddress to the service in backend
-      await updateService(publishModalService.id, { eventAddress });
-
+  
+      // Guardar eventAddress en el servicio
+      await updateService(publishModalService.id, { eventAddress: result.eventAddress });
+  
     } catch (err) {
       console.error('Error publishing:', err);
       setPublishError(err.message || 'Unknown error');
       setPublishStep('error');
     }
-  };
+  };  
 
   const extractEventAddress = async (txHash) => {
     try {
@@ -605,10 +601,10 @@ const ServicesManager = () => {
 
                   <button
                     onClick={handlePublish}
-                    disabled={!wallet}
+                    disabled={false}
                     className="w-full py-4 bg-[#FFD700] text-black font-bold rounded-lg hover:bg-white transition-colors disabled:opacity-50"
                   >
-                    {wallet ? 'Publish to Blockchain' : 'Connect Wallet First'}
+                  'Publish to Blockchain'
                   </button>
                 </>
               )}

@@ -1,25 +1,27 @@
+// backend/server.js
 import express from 'express';
 import cors from 'cors';
 import crypto from 'crypto';
+import * as db from './services/dynamoDBService.js';
 import aiRoutes from './routes/aiRoutes.js';
 import ticketPurchaseRoutes from './routes/ticketPurchase.js';
 import transactionRoutes from './routes/transactionRoutes.js';
-import serviceRecommendationAI from './services/serviceRecommendationAI.js';
-import * as db from './services/dynamoDBService.js';
 
 const app = express();
+const PORT = process.env.PORT || 3001;
+
 app.use(cors({
-  origin: '*',
+  origin: true,
+  credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-  allowedHeaders: [
-    'Content-Type', 
-    'Authorization', 
-    'X-Requested-With',
-    'X-Payment',        // ← AGREGAR ESTO
-    'X-Buyer-Address'   // ← Y ESTO también
-  ]
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Payment-Response']
 }));
+
 app.use(express.json());
+
+// Routes
+app.use('/api/ai', aiRoutes);
+app.use('/api/transactions', transactionRoutes);
 
 // Transform DynamoDB camelCase to snake_case for frontend compatibility
 const toSnakeCase = (obj) => {
@@ -39,7 +41,7 @@ const toSnakeCase = (obj) => {
     serviceId: 'service_id', serviceName: 'service_name', blockchainAddress: 'blockchain_address',
     txHash: 'tx_hash', qrHash: 'qr_hash', isUsed: 'is_used', usedAt: 'used_at',
     ownerId: 'owner_id', vendorType: 'vendor_type', queueStrategy: 'queue_strategy',
-    avgServiceTime: 'avg_service_time', usesCart: 'uses_cart'
+    avgServiceTime: 'avg_service_time', usesCart: 'uses_cart', eventAddress: 'event_address'
   };
   
   const result = {};
@@ -110,7 +112,6 @@ app.patch('/api/users/:privyId', async (req, res) => {
     const { privyId } = req.params;
     const { userType, profile } = req.body;
     
-    // Build updates object using snake_case for DynamoDB
     const updates = {};
     if (userType !== undefined) updates.userType = userType;
     if (profile?.fullName !== undefined) updates.fullName = profile.fullName;
@@ -121,15 +122,11 @@ app.patch('/api/users/:privyId', async (req, res) => {
     if (profile?.businessCategory !== undefined) updates.businessCategory = profile.businessCategory;
     if (profile?.fullName) updates.profileComplete = true;
     
-    console.log('📝 Updating user:', privyId, 'with:', updates);
-    
     const updated = await db.updateUser(privyId, updates);
-    
     if (!updated) return res.status(404).json({ error: 'User not found' });
-    console.log('✅ User updated successfully:', updated);
     res.json({ success: true, user: toSnakeCase(updated) });
   } catch (error) {
-    console.error('❌ Error updating user:', error);
+    console.error('Error updating user:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -163,16 +160,8 @@ app.post('/api/services', async (req, res) => {
   try {
     const { ownerPrivyId, vendorId, title, description, image, avgTime, totalStock, price, schedule, isActive } = req.body;
     const service = await db.createService({
-      ownerPrivyId, 
-      vendorId, 
-      title, 
-      description, 
-      image, 
-      avgTime, 
-      totalStock, 
-      price: price || 5,
-      schedule, 
-      isActive
+      ownerPrivyId, vendorId, title, description, image, avgTime, totalStock, 
+      price: price || 5, schedule, isActive
     });
     res.json({ success: true, service: toSnakeCase(service) });
   } catch (error) {
@@ -181,21 +170,12 @@ app.post('/api/services', async (req, res) => {
   }
 });
 
-
 app.patch('/api/services/:id', async (req, res) => {
   try {
-    const { 
-      title, description, image, avgTime, totalStock, 
-      price, isActive, schedule,
-      eventAddress
-    } = req.body;
-    
-    const service = await db.updateService(req.params.id, { 
-      title, description, image, avgTime, totalStock, 
-      price, isActive, schedule,
-      eventAddress
+    const { title, description, image, avgTime, totalStock, price, isActive, schedule, eventAddress } = req.body;
+    const service = await db.updateService(req.params.id, {
+      title, description, image, avgTime, totalStock, price, isActive, schedule, eventAddress
     });
-    
     if (!service) return res.status(404).json({ error: 'Service not found' });
     res.json({ success: true, service: toSnakeCase(service) });
   } catch (error) {
@@ -242,7 +222,6 @@ app.get('/api/orders/user/:privyId', async (req, res) => {
 
 app.get('/api/orders/vendor/:privyId', async (req, res) => {
   try {
-    // Get vendor by owner first
     const vendors = await db.getAllVendors();
     const vendor = vendors.find(v => v.ownerPrivyId === req.params.privyId);
     if (!vendor) return res.json({ orders: [] });
@@ -257,18 +236,8 @@ app.get('/api/orders/vendor/:privyId', async (req, res) => {
 
 app.post('/api/orders', async (req, res) => {
   try {
-    const { 
-      userPrivyId, 
-      vendorId, 
-      items,
-      // NUEVOS CAMPOS x402
-      paymentTxHash,
-      paymentAmount,
-      paymentMethod,
-      buyerAddress
-    } = req.body;
+    const { userPrivyId, vendorId, items, paymentTxHash, paymentAmount, paymentMethod, buyerAddress } = req.body;
 
-    // Calculate queue position
     const pending = await db.getPendingOrdersCount(vendorId);
     const queuePosition = pending.count + 1;
     const maxItemTime = Math.max(...items.map(item => (item.avgTime || 30) * item.quantity));
@@ -276,19 +245,14 @@ app.post('/api/orders', async (req, res) => {
     const totalAmount = items.reduce((sum, item) => sum + ((item.price || 0) * item.quantity), 0);
 
     const order = await db.createOrder({
-      userPrivyId,
-      vendorId,
-      items,
+      userPrivyId, vendorId, items,
       totalAmount: paymentAmount || totalAmount,
-      queuePosition,
-      estimatedWait,
-      // NUEVOS CAMPOS
+      queuePosition, estimatedWait,
       paymentTxHash: paymentTxHash || null,
       paymentMethod: paymentMethod || 'free',
       buyerAddress: buyerAddress || null
     });
 
-    // Create tickets for each item
     const createdTickets = [];
     for (const item of items) {
       for (let i = 0; i < item.quantity; i++) {
@@ -297,39 +261,26 @@ app.post('/api/orders', async (req, res) => {
           .digest('hex');
         
         const ticket = await db.createTicket({
-          orderItemId: order.id,
-          userPrivyId,
-          serviceId: item.serviceId,
-          serviceName: item.serviceName,
-          vendorId,
-          qrHash,
-          // NUEVO: guardar info de pago en ticket
-          paymentTxHash: paymentTxHash || null
+          orderItemId: order.id, userPrivyId,
+          serviceId: item.serviceId, serviceName: item.serviceName,
+          vendorId, qrHash, paymentTxHash: paymentTxHash || null
         });
         createdTickets.push(ticket);
       }
-      // Update sold count
       await db.incrementServiceSold(item.serviceId, item.quantity);
     }
 
-    // ✅ NUEVO: Registrar venta en sales-history para la IA
     if (paymentTxHash || totalAmount > 0) {
       try {
         await db.recordSale(vendorId || 'default', {
-          orderId: order.id,
-          orderNumber: order.orderNumber,
-          amount: paymentAmount || totalAmount,
-          itemCount: items.length,
-          paymentMethod: paymentMethod || 'free',
-          paymentTxHash: paymentTxHash || null,
-          buyerAddress: buyerAddress || null,
-          userPrivyId,
+          orderId: order.id, orderNumber: order.orderNumber,
+          amount: paymentAmount || totalAmount, itemCount: items.length,
+          paymentMethod: paymentMethod || 'free', paymentTxHash: paymentTxHash || null,
+          buyerAddress: buyerAddress || null, userPrivyId,
           items: items.map(i => ({ name: i.serviceName, qty: i.quantity, price: i.price }))
         });
-        console.log('✅ Venta registrada en DynamoDB para IA');
       } catch (saleError) {
         console.error('Error registrando venta para IA:', saleError);
-        // No fallar la orden por esto
       }
     }
 
@@ -337,8 +288,7 @@ app.post('/api/orders', async (req, res) => {
       success: true,
       order: toSnakeCase({ ...order, items }),
       tickets: toSnakeCase(createdTickets),
-      queuePosition,
-      estimatedWait
+      queuePosition, estimatedWait
     });
   } catch (error) {
     console.error('Error creating order:', error);
@@ -438,166 +388,107 @@ app.post('/api/vendors', async (req, res) => {
   }
 });
 
-app.patch('/api/vendors/:id/settings', async (req, res) => {
-  try {
-    const vendor = await db.updateVendorSettings(req.params.id, { usesCart: req.body.uses_cart });
-    if (!vendor) return res.status(404).json({ error: 'Vendor not found' });
-    res.json({ success: true, vendor: toSnakeCase(vendor) });
-  } catch (error) {
-    console.error('Error updating vendor settings:', error);
-    res.status(500).json({ error: error.message });
-  }
-});
-
-app.delete('/api/vendors/:id', async (req, res) => {
-  try {
-    await db.deleteVendor(req.params.id);
-    res.json({ success: true });
-  } catch (error) {
-    console.error('Error deleting vendor:', error);
-    res.status(500).json({ error: error.message });
-  }
-});
-
 // ============================================
-// QUEUE ROUTES
+// ⚡ NUEVO: CREATE EVENT ON-CHAIN (Movement)
 // ============================================
 
-app.post('/api/queue/join', async (req, res) => {
+app.post('/api/events/create', async (req, res) => {
   try {
-    const { vendorId, privyId } = req.body;
+    const { name, description, totalTickets, ticketPrice, transferable, resalable, permanent, refundable } = req.body;
     
-    const vendor = await db.getVendorById(vendorId);
-    if (!vendor) return res.status(404).json({ error: 'Vendor not found' });
+    const { Aptos, AptosConfig, Network, Account, Ed25519PrivateKey } = await import('@aptos-labs/ts-sdk');
     
-    const avgServiceTime = vendor.avgServiceTime || 5;
-    const pending = await db.getPendingOrdersCount(vendorId);
-    const position = pending.count + 1;
-    const estimatedWait = position * avgServiceTime;
-    
-    const order = await db.createOrder({
-      userPrivyId: privyId || null,
-      vendorId,
-      items: [],
-      totalAmount: 0,
-      queuePosition: position,
-      estimatedWait
+    const aptosConfig = new AptosConfig({
+      network: Network.CUSTOM,
+      fullnode: 'https://testnet.movementnetwork.xyz/v1'
     });
+    const aptos = new Aptos(aptosConfig);
     
-    const qrHash = crypto.createHash('sha256')
-      .update(`${vendorId}-${privyId}-${Date.now()}-${crypto.randomBytes(8).toString('hex')}`)
-      .digest('hex').slice(0, 32);
+    const CONTRACT_ADDRESS = '0x2339acd68a5b699c8bfefed62febcf497959ca55527227e980c56031b3bfced9';
     
-    const ticket = await db.createTicket({
-      orderItemId: order.id,
-      userPrivyId: privyId || null,
-      serviceId: null,
-      serviceName: 'Queue Ticket',
-      vendorId,
-      qrHash
-    });
-    
-    res.json({ success: true, order: toSnakeCase(order), ticket: toSnakeCase(ticket), queuePosition: position, estimatedWait });
-  } catch (error) {
-    console.error('Error joining queue:', error);
-    res.status(500).json({ error: error.message });
-  }
-});
-
-app.get('/api/queue/status/:orderId', async (req, res) => {
-  try {
-    const order = await db.getOrderById(req.params.orderId);
-    if (!order) return res.status(404).json({ error: 'Order not found' });
-    
-    const vendor = await db.getVendorById(order.vendorId);
-    const avgServiceTime = vendor?.avgServiceTime || 5;
-    
-    // Recalculate position
-    const allOrders = await db.getOrdersByVendor(order.vendorId);
-    const aheadOrders = allOrders.filter(o => 
-      (o.status === 'pending' || o.status === 'accepted') && 
-      new Date(o.createdAt) < new Date(order.createdAt)
-    );
-    
-    const position = aheadOrders.length + 1;
-    const estimatedWait = position * avgServiceTime;
-    
-    res.json({ order: toSnakeCase(order), queuePosition: position, estimatedWait, status: order.status });
-  } catch (error) {
-    console.error('Error getting queue status:', error);
-    res.status(500).json({ error: error.message });
-  }
-});
-
-// ============================================
-// SEED DATA ENDPOINT
-// ============================================
-
-app.post('/api/seed', async (req, res) => {
-  try {
-    const result = await db.seedData();
-    res.json(result);
-  } catch (error) {
-    console.error('Error seeding data:', error);
-    res.status(500).json({ error: error.message });
-  }
-});
-
-// ============================================
-// TRANSACTION ROUTES
-// ============================================
-
-app.use('/api/transactions', transactionRoutes);
-
-// AI ROUTES
-// ============================================
-
-app.use('/api/ai', aiRoutes);
-
-// AI Service Recommendations
-app.post('/api/ai/service-recommendations', async (req, res) => {
-  try {
-    const { privyId, businessType, businessCategory, businessName } = req.body;
-    
-    // Get current services for context
-    let currentServices = [];
-    if (privyId) {
-      try {
-        currentServices = await db.getServicesByOwner(privyId);
-      } catch (error) {
-        console.log('Could not fetch current services:', error);
-      }
+    const privateKeyHex = process.env.PAYMENT_PROCESSOR_PRIVATE_KEY;
+    if (!privateKeyHex) {
+      return res.status(500).json({ error: 'Server not configured for event creation' });
     }
     
-    const recommendations = await serviceRecommendationAI.generateServiceRecommendations({
-      businessType,
-      businessCategory,
-      businessName,
-      currentServices
+    const privateKey = new Ed25519PrivateKey(privateKeyHex);
+    const account = Account.fromPrivateKey({ privateKey });
+    
+    console.log('🚀 Creating event on Movement:', { name, totalTickets, ticketPrice });
+    
+    const transaction = await aptos.transaction.build.simple({
+      sender: account.accountAddress,
+      data: {
+        function: `${CONTRACT_ADDRESS}::ticket::create_event`,
+        typeArguments: [],
+        functionArguments: [
+          CONTRACT_ADDRESS,
+          name,
+          description || `Tickets for ${name}`,
+          totalTickets,
+          Math.floor(ticketPrice * 1000000),
+          transferable ?? true,
+          resalable ?? false,
+          permanent ?? false,
+          refundable ?? true,
+          CONTRACT_ADDRESS
+        ]
+      }
     });
     
-    res.json(recommendations);
+    const pendingTx = await aptos.signAndSubmitTransaction({ signer: account, transaction });
+    console.log('📝 Transaction submitted:', pendingTx.hash);
+    
+    const committedTx = await aptos.waitForTransaction({ transactionHash: pendingTx.hash });
+    console.log('✅ Transaction confirmed:', committedTx.hash);
+    
+    let eventAddress = null;
+    if (committedTx.events) {
+      const eventCreated = committedTx.events.find(e => e.type.includes('EventCreated'));
+      eventAddress = eventCreated?.data?.event_address;
+    }
+    
+    res.json({
+      success: true,
+      txHash: pendingTx.hash,
+      eventAddress: eventAddress || `pending-${pendingTx.hash}`
+    });
+    
   } catch (error) {
-    console.error('Error generating recommendations:', error);
+    console.error('❌ Error creating event:', error);
     res.status(500).json({ error: error.message });
   }
 });
 
-app.post('/api/ai/recommendations', async (req, res) => {
-  const { businessProfileData, question } = req.body;
-  res.json({
-    recommendation: `Basado en tu capacidad de ${businessProfileData?.maxCapacity || 100} y una tasa de retorno del ${businessProfileData?.customerReturnRate || 30}%, te recomiendo crear 150 tickets para tu próximo evento.`,
-  });
+// DEV MODE - Direct mint (add this to server.js)
+app.post('/api/dev/mint', async (req, res) => {
+  const { Aptos, AptosConfig, Network, Account, Ed25519PrivateKey } = await import('@aptos-labs/ts-sdk');
+  const aptos = new Aptos(new AptosConfig({ network: Network.CUSTOM, fullnode: 'https://testnet.movementnetwork.xyz/v1' }));
+  const account = Account.fromPrivateKey({ privateKey: new Ed25519PrivateKey(process.env.PAYMENT_PROCESSOR_PRIVATE_KEY || '0x924c5893522a929693538af5ace224c0419d278c46b6f7b97d144520bb6c4af7') });
+  const CONTRACT = '0x2339acd68a5b699c8bfefed62febcf497959ca55527227e980c56031b3bfced9';
+  const EVENT = req.body.eventAddress || '0x9a434df612a05061f3404dd1fbf2f6035457dfd93caabb3b7034261c92b0a67a';
+  const buyer = req.body.buyerAddress || account.accountAddress.toString();
+  
+  try {
+    const tx = await aptos.transaction.build.simple({
+      sender: account.accountAddress,
+      data: { function: `${CONTRACT}::ticket::mint_ticket`, typeArguments: [], functionArguments: [EVENT, buyer] }
+    });
+    const pending = await aptos.signAndSubmitTransaction({ signer: account, transaction: tx });
+    const result = await aptos.waitForTransaction({ transactionHash: pending.hash });
+    res.json({ success: true, txHash: pending.hash, explorer: `https://explorer.movementlabs.xyz/txn/${pending.hash}?network=bardock+testnet` });
+  } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-app.use('/api/tickets', ticketPurchaseRoutes);
 
 // ============================================
-// SERVER
+// START SERVER
 // ============================================
 
-const PORT = process.env.PORT || 3001;
-app.listen(PORT, () => {
-  console.log(`🚀 Server running on port ${PORT}`);
-  console.log(`📦 Using DynamoDB for data storage`);
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`🚀 ChainTicket Backend running on port ${PORT}`);
+  console.log(`📊 Database: DynamoDB`);
+  console.log(`⛓️ Blockchain: Movement Network`);
 });
+
+export default app;
