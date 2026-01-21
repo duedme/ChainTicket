@@ -230,7 +230,7 @@ const Login = () => {
           ) : (
             <>
               <Wallet className="w-5 h-5" />
-              <span className="font-serif">ENTER PORTAL</span>
+              <span className="font-serif">ENTER PORTAL <span role="img" aria-label="lock">🔒</span></span>
               <ArrowRight className="w-5 h-5" />
             </>
           )}
